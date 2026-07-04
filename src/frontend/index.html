@@ -1,0 +1,504 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SIGAT · Gestión de Atletas</title>
+  <link rel="icon" type="image/png" href="/logo.png" />
+  <link rel="apple-touch-icon" href="/logo.png" />
+  <link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+
+  <!-- ===================== LOGIN ===================== -->
+  <section id="view-login" class="login-wrap hidden">
+    <form id="login-form" class="login-card" autocomplete="on">
+      <div class="brand">
+        <img class="brand-logo brand-logo-lg" src="/logo.png" alt="Logo SIGAT" />
+        <h1>SIGAT</h1>
+        <p>Sistema de Gestión de Atletas de Taekwondo</p>
+      </div>
+      <label>Usuario
+        <input type="text" id="login-user" name="username" maxlength="40" required autofocus />
+      </label>
+      <label>Contraseña
+        <input type="password" id="login-pass" name="password" maxlength="72" required />
+      </label>
+      <button type="submit" class="btn btn-primary btn-block">Ingresar</button>
+      <p id="login-error" class="form-error"></p>
+    </form>
+  </section>
+
+  <!-- ===================== APP ===================== -->
+  <div id="view-app" class="hidden">
+    <header class="topbar">
+      <div class="topbar-left">
+        <button id="btn-menu" class="btn-icon only-mobile" aria-label="Menú">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+        </button>
+        <img class="brand-logo" src="/logo.png" alt="Logo" />
+        <strong>SIGAT</strong>
+        <span id="ws-dot" class="ws-dot" title="Tiempo real"></span>
+      </div>
+      <div class="topbar-right">
+        <span id="user-badge" class="user-badge"></span>
+        <button id="btn-cuenta" class="btn btn-ghost btn-sm">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>
+          <span class="btn-label">Mi cuenta</span>
+        </button>
+      </div>
+    </header>
+
+    <div class="app-shell">
+      <nav id="sidebar" class="sidebar">
+        <a class="nav-item" data-route="atletas">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+          <span>Atletas</span>
+        </a>
+        <a class="nav-item admin-only" data-route="escuelas">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l7-4 7 4v14"/><path d="M9 21v-6h6v6"/></svg>
+          <span>Escuelas</span>
+        </a>
+        <a class="nav-item admin-only" data-route="usuarios">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><line x1="19" y1="8" x2="19" y2="14"/><line x1="22" y1="11" x2="16" y2="11"/></svg>
+          <span>Usuarios</span>
+        </a>
+        <a class="nav-item admin-only" data-route="datos">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/></svg>
+          <span>Datos maestros</span>
+        </a>
+        <a class="nav-item admin-only" data-route="respaldo">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <span>Respaldo</span>
+        </a>
+        <div class="sidebar-spacer"></div>
+        <a class="nav-item nav-logout" id="btn-logout">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          <span>Salir</span>
+        </a>
+      </nav>
+      <div id="sidebar-backdrop" class="sidebar-backdrop hidden"></div>
+
+      <main class="content">
+        <!-- ===================== SECCIÓN ATLETAS ===================== -->
+        <section id="sec-atletas" class="route-sec">
+          <div class="toolbar">
+            <div class="toolbar-row">
+              <input type="search" id="f-texto" class="grow" maxlength="60" placeholder="Buscar por nombre, apellido o cédula…" />
+              <button id="btn-avanzado" class="btn btn-ghost">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="4" y1="6" x2="20" y2="6"/><line x1="7" y1="12" x2="17" y2="12"/><line x1="10" y1="18" x2="14" y2="18"/></svg>
+                <span>Filtro avanzado</span>
+              </button>
+              <button id="btn-nuevo" class="btn btn-primary admin-only">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>Nuevo atleta</span>
+              </button>
+            </div>
+            <div class="toolbar-row facets">
+              <select id="f-escuela"><option value="">Todas las escuelas</option></select>
+              <select id="f-municipio"><option value="">Todos los municipios</option></select>
+              <select id="f-cinturon"><option value="">Todos los cinturones</option></select>
+              <select id="f-estado">
+                <option value="">Activos y retirados</option>
+                <option value="activo">Solo activos</option>
+                <option value="retirado">Solo retirados</option>
+              </select>
+            </div>
+            <div class="toolbar-row report-row">
+              <label class="inline-field">Registrado desde<input type="date" id="f-fdesde" /></label>
+              <label class="inline-field">hasta<input type="date" id="f-fhasta" /></label>
+              <span class="grow"></span>
+              <button id="btn-pdf-filtros" class="btn btn-ghost btn-sm" title="PDF de los atletas que cumplen los filtros actuales">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <span>PDF (con filtros)</span>
+              </button>
+              <button id="btn-pdf-todos" class="btn btn-ghost btn-sm" title="PDF con todos los atletas, ignorando los filtros">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <span>PDF (todos)</span>
+              </button>
+            </div>
+
+            <div id="adv-panel" class="adv-panel hidden">
+              <div class="adv-head">
+                <span>Coincidir</span>
+                <select id="adv-match"><option value="all">todas</option><option value="any">cualquiera</option></select>
+                <span>de las condiciones:</span>
+              </div>
+              <div id="adv-rows"></div>
+              <div class="adv-foot">
+                <button type="button" id="adv-add" class="btn btn-ghost btn-sm">
+                  <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                  <span>Agregar condición</span>
+                </button>
+                <button type="button" id="adv-clear" class="btn btn-ghost btn-sm">Limpiar filtros</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="list-meta"><span id="list-count">—</span></div>
+          <div class="table-wrap">
+            <table class="tabla">
+              <thead><tr><th>Atleta</th><th>Cédula</th><th>Edad</th><th>Escuela</th><th>Cinturón</th><th>Estado</th><th></th></tr></thead>
+              <tbody id="tabla-body"></tbody>
+            </table>
+            <div id="empty" class="empty hidden"></div>
+          </div>
+
+          <div class="pager">
+            <button id="pg-prev" class="btn btn-ghost btn-sm" title="Anterior">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <span class="pg-range">
+              <input type="text" id="pg-desde" class="pg-input" inputmode="numeric" />
+              <span>–</span>
+              <input type="text" id="pg-hasta" class="pg-input" inputmode="numeric" />
+              <span>de <b id="pg-total">0</b></span>
+            </span>
+            <button id="pg-next" class="btn btn-ghost btn-sm" title="Siguiente">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+          </div>
+        </section>
+
+        <!-- ===================== SECCIÓN ESCUELAS ===================== -->
+        <section id="sec-escuelas" class="route-sec hidden">
+          <div class="sec-head">
+            <h2 class="sec-title">Escuelas</h2>
+            <button id="btn-nueva-escuela" class="btn btn-primary btn-sm">+ Nueva escuela</button>
+          </div>
+          <div id="dt-escuelas"></div>
+        </section>
+
+        <!-- ===================== SECCIÓN USUARIOS ===================== -->
+        <section id="sec-usuarios" class="route-sec hidden">
+          <div class="sec-head">
+            <h2 class="sec-title">Usuarios del sistema</h2>
+            <button id="btn-nuevo-usuario" class="btn btn-primary btn-sm">+ Nuevo usuario</button>
+          </div>
+          <div id="dt-usuarios"></div>
+        </section>
+
+        <!-- ===================== SECCIÓN DATOS MAESTROS ===================== -->
+        <section id="sec-datos" class="route-sec hidden">
+          <h2 class="sec-title">Datos maestros</h2>
+          <div class="subtabs" id="maestro-tabs">
+            <button class="subtab active" data-tipo="estados">Estados</button>
+            <button class="subtab" data-tipo="ciudades">Ciudades</button>
+            <button class="subtab" data-tipo="municipios">Municipios</button>
+            <button class="subtab" data-tipo="parroquias">Parroquias</button>
+            <button class="subtab" data-tipo="cinturones">Cinturones</button>
+          </div>
+          <div class="sec-head">
+            <span class="grow"></span>
+            <button id="btn-nuevo-maestro" class="btn btn-primary btn-sm">+ Nuevo</button>
+          </div>
+          <div id="dt-maestro"></div>
+        </section>
+
+        <!-- ===================== SECCIÓN RESPALDO ===================== -->
+        <section id="sec-respaldo" class="route-sec hidden">
+          <h2 class="sec-title">Respaldo del sistema</h2>
+          <div class="card">
+            <h3>Base de datos completa</h3>
+            <p class="muted-p">Descarga una copia íntegra de la base de datos (<code>.db</code>) como respaldo total.</p>
+            <button id="btn-dl-db" class="btn btn-primary btn-sm">Descargar base de datos</button>
+          </div>
+          <div class="card">
+            <h3>Exportar tabla (CSV)</h3>
+            <p class="muted-p">Exporta una tabla específica (por ejemplo, solo escuelas) a CSV.</p>
+            <div class="row-gap"><select id="exp-tabla"></select><button id="btn-exp" class="btn btn-primary btn-sm">Exportar CSV</button></div>
+          </div>
+          <div class="card">
+            <h3>Importar tabla (CSV)</h3>
+            <p class="muted-p danger-note">⚠ Importar <b>reemplaza por completo</b> el contenido de la tabla seleccionada.</p>
+            <div class="row-gap"><select id="imp-tabla"></select><input type="file" id="imp-file" accept=".csv" /><button id="btn-imp" class="btn btn-danger btn-sm">Importar y reemplazar</button></div>
+            <p id="imp-msg" class="muted-p"></p>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: FORM ATLETA ===================== -->
+  <div id="modal-atleta" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="modal-title">Nuevo atleta</h2>
+        <button class="modal-x" data-close aria-label="Cerrar">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <form id="form-atleta" class="modal-body" novalidate>
+        <input type="hidden" id="a-id" />
+
+        <fieldset>
+          <legend>Datos personales</legend>
+          <div class="grid2">
+            <label>Nombres *<input id="a-nombres" maxlength="60" required /></label>
+            <label>Apellidos *<input id="a-apellidos" maxlength="60" required /></label>
+            <label>Cédula <small class="opt">(opcional en menores)</small>
+              <div class="cedula-wrap">
+                <select id="a-cedula-tipo" class="ced-tipo"><option value="V" selected>V</option><option value="E">E</option><option value="P">P</option></select>
+                <input id="a-cedula-numero" class="ced-num" inputmode="numeric" maxlength="9" placeholder="Número" />
+              </div>
+            </label>
+            <label>Fecha de nacimiento *
+              <div class="date-triplet" id="dt-nac">
+                <input class="d-dia" id="a-nac-dia" inputmode="numeric" maxlength="2" placeholder="Día" aria-label="Día" />
+                <select class="d-mes" id="a-nac-mes" aria-label="Mes"></select>
+                <input class="d-anio" id="a-nac-anio" inputmode="numeric" maxlength="4" placeholder="Año" aria-label="Año" />
+              </div>
+            </label>
+            <label>Teléfono principal *<input id="a-telefono" inputmode="tel" maxlength="20" required /></label>
+          </div>
+          <div class="contactos">
+            <div class="contactos-head">
+              <span>Teléfonos de contacto <small class="opt">(hasta 3)</small></span>
+              <button type="button" id="a-contacto-add" class="btn btn-ghost btn-sm">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                <span>Agregar</span>
+              </button>
+            </div>
+            <div id="a-contactos"></div>
+          </div>
+          <p id="edad-hint" class="hint"></p>
+        </fieldset>
+
+        <fieldset>
+          <legend>Ubicación y escuela</legend>
+          <div class="grid2">
+            <label>Estado<select id="a-estado"></select></label>
+            <label>Ciudad<select id="a-ciudad"></select></label>
+            <label>Municipio<select id="a-municipio"></select></label>
+            <label>Parroquia<select id="a-parroquia"></select></label>
+          </div>
+          <label>Dirección (sector, calle, casa/apto, habitación)
+            <textarea id="a-direccion" rows="3" maxlength="160"></textarea>
+          </label>
+          <label>Escuela<select id="a-escuela"><option value="">No aplica</option></select></label>
+        </fieldset>
+
+        <fieldset>
+          <legend>Inscripción</legend>
+          <div class="grid2">
+            <label>Fecha de inscripción *
+              <div class="date-triplet" id="dt-ins">
+                <input class="d-dia" id="a-ins-dia" inputmode="numeric" maxlength="2" placeholder="Día" aria-label="Día" />
+                <select class="d-mes" id="a-ins-mes" aria-label="Mes"></select>
+                <input class="d-anio" id="a-ins-anio" inputmode="numeric" maxlength="4" placeholder="Año" aria-label="Año" />
+              </div>
+            </label>
+            <label class="check-inline"><input type="checkbox" id="a-ins-nodia" /><span>No sé el día</span></label>
+          </div>
+        </fieldset>
+
+        <fieldset id="fs-cinturon">
+          <legend>Cinturón inicial</legend>
+          <div class="grid2">
+            <label>Cinturón<select id="a-cinturon"><option value="">No aplica</option></select></label>
+            <label id="dan-wrap" class="hidden">DAN (1–9)<input id="a-dan" inputmode="numeric" maxlength="1" /></label>
+          </div>
+        </fieldset>
+
+        <fieldset id="fs-representante">
+          <legend>Representante <span class="req-menor">(obligatorio en menores de edad)</span></legend>
+          <div class="grid2">
+            <label>Nombres<input id="r-nombres" maxlength="60" /></label>
+            <label>Apellidos<input id="r-apellidos" maxlength="60" /></label>
+            <label>Cédula
+              <div class="cedula-wrap">
+                <select id="r-cedula-tipo" class="ced-tipo"><option value="V" selected>V</option><option value="E">E</option><option value="P">P</option></select>
+                <input id="r-cedula-numero" class="ced-num" inputmode="numeric" maxlength="9" placeholder="Número" />
+              </div>
+            </label>
+            <label>Teléfono<input id="r-telefono" inputmode="tel" maxlength="20" /></label>
+            <label>Parentesco
+              <select id="r-parentesco-sel">
+                <option value="">No aplica</option>
+                <option value="Madre">Madre</option><option value="Padre">Padre</option>
+                <option value="Tutor legal">Tutor legal</option><option value="Abuelo/a">Abuelo/a</option>
+                <option value="Tío/a">Tío/a</option><option value="Hermano/a">Hermano/a</option>
+                <option value="Otro">Otro…</option>
+              </select>
+            </label>
+            <label id="r-parentesco-otro-wrap" class="hidden">Especifique parentesco<input id="r-parentesco-otro" maxlength="40" /></label>
+          </div>
+        </fieldset>
+
+        <p id="form-error" class="form-error"></p>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
+          <button type="submit" id="a-submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: DETALLE ATLETA ===================== -->
+  <div id="modal-detalle" class="modal-backdrop hidden">
+    <div class="modal">
+      <div class="modal-head">
+        <h2 id="det-title">Ficha del atleta</h2>
+        <button class="modal-x" data-close aria-label="Cerrar">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div id="det-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: MI CUENTA ===================== -->
+  <div id="modal-cuenta" class="modal-backdrop hidden">
+    <div class="modal modal-sm">
+      <div class="modal-head">
+        <h2>Mi cuenta</h2>
+        <button class="modal-x" data-close aria-label="Cerrar">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <form id="form-cuenta" class="modal-body" novalidate>
+        <label>Nombre de usuario<input id="acc-user" maxlength="40" autocomplete="username" /></label>
+        <div class="acc-sep"><span>Cambiar contraseña (opcional)</span></div>
+        <label>Nueva contraseña
+          <div class="pass-wrap"><input type="password" id="acc-pass" maxlength="72" autocomplete="new-password" /><button type="button" class="eye" data-eye="acc-pass" aria-label="Mostrar/ocultar"></button></div>
+        </label>
+        <label>Repetir contraseña
+          <div class="pass-wrap"><input type="password" id="acc-pass2" maxlength="72" autocomplete="new-password" /><button type="button" class="eye" data-eye="acc-pass2" aria-label="Mostrar/ocultar"></button></div>
+        </label>
+        <ul class="pw-checks" id="pw-checks">
+          <li data-check="len">Mínimo 8 caracteres</li>
+          <li data-check="upper">Al menos una mayúscula</li>
+          <li data-check="lower">Al menos una minúscula</li>
+          <li data-check="digit">Al menos un número</li>
+          <li data-check="match">Las contraseñas coinciden</li>
+        </ul>
+        <p id="acc-error" class="form-error"></p>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
+          <button type="submit" id="acc-submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: ESCUELA ===================== -->
+  <div id="modal-escuela" class="modal-backdrop hidden">
+    <div class="modal modal-sm">
+      <div class="modal-head">
+        <h2 id="esc-title">Nueva escuela</h2>
+        <button class="modal-x" data-close aria-label="Cerrar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <form id="form-escuela" class="modal-body" novalidate>
+        <input type="hidden" id="esc-id" />
+        <label>Nombre *<input id="esc-nombre" maxlength="80" required /></label>
+        <div class="grid2">
+          <label>Estado<select id="esc-estado"></select></label>
+          <label>Ciudad<select id="esc-ciudad"></select></label>
+        </div>
+        <label>Municipio *<select id="esc-municipio"></select></label>
+        <label>Dirección<textarea id="esc-direccion" rows="3" maxlength="160"></textarea></label>
+        <label class="check-inline"><input type="checkbox" id="esc-activa" checked /><span>Activa</span></label>
+        <p id="esc-error" class="form-error"></p>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
+          <button type="submit" id="esc-submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: USUARIO ===================== -->
+  <div id="modal-usuario" class="modal-backdrop hidden">
+    <div class="modal modal-sm">
+      <div class="modal-head">
+        <h2 id="usr-title">Nuevo usuario</h2>
+        <button class="modal-x" data-close aria-label="Cerrar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <form id="form-usuario" class="modal-body" novalidate>
+        <input type="hidden" id="usr-id" />
+        <label>Nombre *<input id="usr-nombre" maxlength="80" required /></label>
+        <div class="grid2">
+          <label>Nombre de usuario *<input id="usr-username" maxlength="40" autocomplete="off" required /></label>
+          <label>Rol<select id="usr-rol"><option value="0">Consultor</option><option value="1">Administrador</option></select></label>
+        </div>
+        <label><span id="usr-pass-label">Contraseña *</span>
+          <div class="pass-wrap"><input type="password" id="usr-pass" maxlength="72" autocomplete="new-password" /><button type="button" class="eye" data-eye="usr-pass" aria-label="Mostrar/ocultar"></button></div>
+        </label>
+        <ul class="pw-checks" id="usr-pw-checks">
+          <li data-check="len">Mínimo 8 caracteres</li>
+          <li data-check="upper">Una mayúscula</li>
+          <li data-check="lower">Una minúscula</li>
+          <li data-check="digit">Un número</li>
+        </ul>
+        <p id="usr-error" class="form-error"></p>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
+          <button type="submit" id="usr-submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: DATO MAESTRO ===================== -->
+  <div id="modal-maestro" class="modal-backdrop hidden">
+    <div class="modal modal-sm">
+      <div class="modal-head">
+        <h2 id="mst-title">Nuevo</h2>
+        <button class="modal-x" data-close aria-label="Cerrar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <form id="form-maestro" class="modal-body" novalidate>
+        <input type="hidden" id="mst-id" />
+        <label id="mst-estado-wrap">Estado<select id="mst-estado"></select></label>
+        <label id="mst-ciudad-wrap">Ciudad <small class="opt">(opcional)</small><select id="mst-ciudad"></select></label>
+        <label id="mst-municipio-wrap">Municipio<select id="mst-municipio"></select></label>
+        <label id="mst-nombre-wrap">Nombre *<input id="mst-nombre" maxlength="80" /></label>
+        <div id="mst-cinturon-extra" class="grid2 hidden">
+          <label>Orden<input id="mst-orden" inputmode="numeric" maxlength="3" /></label>
+          <label class="check-inline"><input type="checkbox" id="mst-esnegro" /><span>Habilita DAN (negro)</span></label>
+        </div>
+        <p id="mst-error" class="form-error"></p>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
+          <button type="submit" id="mst-submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: CONFIRMAR ===================== -->
+  <div id="modal-confirm" class="modal-backdrop hidden">
+    <div class="modal modal-xs">
+      <div class="modal-head"><h2 id="cf-title">Confirmar</h2></div>
+      <div class="modal-body">
+        <p id="cf-msg" class="cf-msg"></p>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-ghost" id="cf-cancel">Cancelar</button>
+          <button type="button" class="btn btn-primary" id="cf-ok">Aceptar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: PEDIR DATOS (prompt) ===================== -->
+  <div id="modal-prompt" class="modal-backdrop hidden">
+    <div class="modal modal-sm">
+      <div class="modal-head">
+        <h2 id="pr-title">Datos</h2>
+        <button class="modal-x" id="pr-x" aria-label="Cerrar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <form id="form-prompt" class="modal-body" novalidate>
+        <div id="pr-body"></div>
+        <p id="pr-error" class="form-error"></p>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-ghost" id="pr-cancel">Cancelar</button>
+          <button type="submit" class="btn btn-primary" id="pr-ok">Aceptar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

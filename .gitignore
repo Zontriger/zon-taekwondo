@@ -1,0 +1,64 @@
+# Binarios e instaladores compilados
+*.exe
+*.exe.manifest
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+app
+app.exe
+
+# Base de datos SQLite y respaldos
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+app.db
+backups/
+*.bak
+
+# Archivos de entorno y credenciales sensibles
+.env
+.env.*
+*.env
+*.pem
+*.key
+cookies.txt
+src/cookies.txt
+
+# Logs y archivos temporales
+*.log
+tmp/
+temp/
+*.tmp
+*.swp
+
+# Dependencias y construcciones de Frontend (si se agregan paquetes Node)
+node_modules/
+dist/
+build/
+.cache/
+
+# Configuración de IDEs y Editores
+.vscode/
+.idea/
+.claude/
+*.user
+*.suo
+
+# Archivos del Sistema Operativo
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+[Dd]esktop.ini
+$RECYCLE.BIN/
+
+# macOS
+.DS_Store
+.appleDouble
+.LSOverride
