@@ -110,14 +110,25 @@ function pedirDatos(titulo, campos) {
     $('#pr-error').textContent = '';
     $('#pr-body').innerHTML = campos.map(c => {
       const id = 'pr-f-' + c.key;
-      if (c.type === 'select') return `<label>${esc(c.label)}<select id="${id}">${c.options.map(o => `<option value="${esc(o.value)}" ${String(o.value) === String(c.value ?? '') ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select></label>`;
-      if (c.type === 'date') return `<label>${esc(c.label)}<input id="${id}" type="date" value="${esc(c.value || '')}"></label>`;
-      if (c.type === 'number') return `<label>${esc(c.label)}<input id="${id}" inputmode="numeric" maxlength="${c.maxLen || 3}" value="${esc(c.value || '')}"></label>`;
-      return `<label>${esc(c.label)}<input id="${id}" maxlength="${c.maxLen || 60}" value="${esc(c.value || '')}"></label>`;
+      let inner;
+      if (c.type === 'select') inner = `<select id="${id}">${c.options.map(o => `<option value="${esc(o.value)}" ${String(o.value) === String(c.value ?? '') ? 'selected' : ''}>${esc(o.label)}</option>`).join('')}</select>`;
+      else if (c.type === 'date') inner = `<input id="${id}" type="date" value="${esc(c.value || '')}">`;
+      else if (c.type === 'number') inner = `<input id="${id}" inputmode="numeric" maxlength="${c.maxLen || 3}" value="${esc(c.value || '')}">`;
+      else inner = `<input id="${id}" maxlength="${c.maxLen || 60}" value="${esc(c.value || '')}">`;
+      return `<label class="pr-field" id="pr-wrap-${c.key}">${esc(c.label)}${inner}</label>`;
     }).join('');
+    evalPromptCond();
     abrir($('#modal-prompt'));
   });
 }
+// Muestra/oculta campos del prompt según su showIf(valores).
+function evalPromptCond() {
+  const vals = {};
+  promptCampos.forEach(c => { const el = $('#pr-f-' + c.key); if (el) vals[c.key] = el.value; });
+  promptCampos.forEach(c => { if (c.showIf) { const w = $('#pr-wrap-' + c.key); if (w) w.classList.toggle('hidden', !c.showIf(vals)); } });
+}
+$('#pr-body').addEventListener('change', evalPromptCond);
+$('#pr-body').addEventListener('input', evalPromptCond);
 function resolverPrompt(v) { cerrar($('#modal-prompt')); if (promptResolve) { promptResolve(v); promptResolve = null; } }
 $('#pr-cancel').addEventListener('click', () => resolverPrompt(null));
 $('#pr-x').addEventListener('click', () => resolverPrompt(null));
@@ -470,7 +481,13 @@ function chipCinturon(color, dan) {
    ============================================================================ */
 const modalAtleta = $('#modal-atleta');
 const GA = () => ({ estado: $('#a-estado'), ciudad: $('#a-ciudad'), municipio: $('#a-municipio'), parroquia: $('#a-parroquia') });
-$('#btn-nuevo').addEventListener('click', () => abrirForm(null));
+let retornoFicha = null; // id del atleta cuya ficha reabrir al cerrar el formulario
+$('#btn-nuevo').addEventListener('click', () => { retornoFicha = null; abrirForm(null); });
+
+// Al cerrar el formulario (Cancelar/X/fondo) sin guardar, reabrir la ficha si venía de ella.
+function alCerrarFormAtleta() { const rid = retornoFicha; retornoFicha = null; if (rid) setTimeout(() => verDetalle(rid), 0); }
+modalAtleta.querySelectorAll('[data-close]').forEach(b => b.addEventListener('click', alCerrarFormAtleta));
+modalAtleta.addEventListener('mousedown', e => { if (e.target === modalAtleta) alCerrarFormAtleta(); });
 
 function abrirForm(atleta) {
   if (!isAdmin()) return;
@@ -590,22 +607,53 @@ function actualizarDanWrap() { const c = cinturonPorId($('#a-cinturon').value); 
 
 function markErr(sel) { const el = $(sel); if (el) el.classList.add('field-err'); }
 function limpiarErrores() { $$('#form-atleta .field-err').forEach(el => el.classList.remove('field-err')); }
-function cedulaCoherente(nSel) { const n = $(nSel).value.trim(); if (!n) return true; if (!/^[0-9]+$/.test(n)) { markErr(nSel); return false; } return true; }
+function telValido(s) { const d = (s.match(/\d/g) || []).length; return d >= 7 && d <= 15; }
+// motivoFecha devuelve null si la fecha (día/mes/año) es válida, o un mensaje concreto.
+function motivoFecha(pfx, label, diaOpcionalSinDia) {
+  const v = tripletVals(pfx);
+  const dia = diaOpcionalSinDia && $('#a-ins-nodia').checked ? '1' : v.dia;
+  if (!v.anio || !v.mes || !dia) return `Complete la ${label}`;
+  const y = +v.anio, m = +v.mes, d = +dia;
+  if (y < 1900 || y > new Date().getFullYear()) return `El año de la ${label} es inválido`;
+  if (m < 1 || m > 12) return `El mes de la ${label} es inválido`;
+  if (d < 1 || d > new Date(y, m, 0).getDate()) return `El día de la ${label} es inválido`;
+  if (new Date(`${y}-${pad2(m)}-${pad2(d)}`) > new Date(hoy())) return `La ${label} no puede ser futura`;
+  return null;
+}
+function renderAyuda(motivos) {
+  const box = $('#form-ayuda');
+  if (!motivos.length) { box.classList.add('hidden'); box.innerHTML = ''; return; }
+  box.classList.remove('hidden');
+  box.innerHTML = `<div class="ayuda-title">Para guardar, falta corregir:</div><ul>${motivos.map(m => `<li>${esc(m)}</li>`).join('')}</ul>`;
+}
 function validarForm() {
   limpiarErrores();
-  let ok = true;
-  if (!val('#a-nombres')) ok = false;
-  if (!val('#a-apellidos')) ok = false;
-  if (!val('#a-telefono')) ok = false;
-  if (!readNac()) ok = false;
-  if (!readIns()) ok = false;
-  if (!cedulaCoherente('#a-cedula-numero')) ok = false;
-  if (!$('#dan-wrap').classList.contains('hidden')) { const d = parseInt(val('#a-dan'), 10); if (!(d >= 1 && d <= 9)) { ok = false; markErr('#a-dan'); } }
-  if (esMenorForm()) { if (!val('#r-nombres')) ok = false; if (!val('#r-apellidos')) ok = false; if (!val('#r-telefono')) ok = false; }
-  if (!cedulaCoherente('#r-cedula-numero')) ok = false;
-  $('#a-submit').disabled = !ok;
+  const motivos = [];
+  if (!val('#a-nombres')) { motivos.push('El nombre es requerido'); markErr('#a-nombres'); }
+  if (!val('#a-apellidos')) { motivos.push('El apellido es requerido'); markErr('#a-apellidos'); }
+  const tel = val('#a-telefono');
+  if (!tel) { motivos.push('El teléfono principal es requerido'); markErr('#a-telefono'); }
+  else if (!telValido(tel)) { motivos.push('El teléfono principal es inválido (ej. 0412123456)'); markErr('#a-telefono'); }
+  const mNac = motivoFecha('a-nac', 'fecha de nacimiento', false);
+  if (mNac) { motivos.push(mNac); markErr('#dt-nac'); }
+  const mIns = motivoFecha('a-ins', 'fecha de inscripción', true);
+  if (mIns) { motivos.push(mIns); markErr('#dt-ins'); }
+  const cn = $('#a-cedula-numero').value.trim();
+  if (cn && !/^[0-9]+$/.test(cn)) { motivos.push('La cédula solo admite dígitos'); markErr('#a-cedula-numero'); }
+  if (!$('#dan-wrap').classList.contains('hidden')) { const d = parseInt(val('#a-dan'), 10); if (!(d >= 1 && d <= 9)) { motivos.push('El DAN debe ser un número del 1 al 9'); markErr('#a-dan'); } }
+  if (esMenorForm()) {
+    if (!val('#r-nombres')) { motivos.push('Falta el nombre del representante (menor de edad)'); markErr('#r-nombres'); }
+    if (!val('#r-apellidos')) { motivos.push('Falta el apellido del representante'); markErr('#r-apellidos'); }
+    const rt = val('#r-telefono');
+    if (!rt) { motivos.push('Falta el teléfono del representante'); markErr('#r-telefono'); }
+    else if (!telValido(rt)) { motivos.push('El teléfono del representante es inválido (ej. 0412123456)'); markErr('#r-telefono'); }
+  }
+  const rcn = $('#r-cedula-numero').value.trim();
+  if (rcn && !/^[0-9]+$/.test(rcn)) { motivos.push('La cédula del representante solo admite dígitos'); markErr('#r-cedula-numero'); }
+  renderAyuda(motivos);
+  $('#a-submit').disabled = motivos.length > 0;
   actualizarEdadHint();
-  return ok;
+  return motivos.length === 0;
 }
 const FIELD_SEL = {
   nombres: '#a-nombres', apellidos: '#a-apellidos', cedula_numero: '#a-cedula-numero', cedula_tipo: '#a-cedula-tipo',
@@ -643,7 +691,10 @@ $('#form-atleta').addEventListener('submit', async (e) => {
   try {
     if (state.editId === null) { await api('/api/atletas', { method: 'POST', body: JSON.stringify(payload) }); toast('Atleta registrado'); }
     else { await api('/api/atletas/' + state.editId, { method: 'PUT', body: JSON.stringify(payload) }); toast('Cambios guardados'); }
-    cerrar(modalAtleta); await cargarLista();
+    cerrar(modalAtleta);
+    const rid = retornoFicha; retornoFicha = null;
+    await cargarLista();
+    if (rid) verDetalle(rid);
   } catch (err) {
     if (err.fields) { pintarErrores(err.fields); $('#form-error').textContent = 'Corrija los campos marcados en rojo.'; }
     else $('#form-error').textContent = err.message;
@@ -696,7 +747,7 @@ async function verDetalle(id) {
       <button class="btn btn-sm btn-danger" id="d-eliminar">${ICON.trash}<span>Eliminar</span></button>
     </div>` : ''}`;
   if (isAdmin()) {
-    $('#d-editar').onclick = () => { cerrar(modalDetalle); abrirForm(a); };
+    $('#d-editar').onclick = () => { retornoFicha = a.id; cerrar(modalDetalle); abrirForm(a); };
     $('#d-cinturon').onclick = () => cambiarCinturon(a);
     if ($('#d-retirar')) $('#d-retirar').onclick = () => retirar(a);
     if ($('#d-reactivar')) $('#d-reactivar').onclick = () => reactivar(a);
@@ -707,25 +758,25 @@ async function verDetalle(id) {
 async function cambiarCinturon(a) {
   const r = await pedirDatos('Cambiar cinturón', [
     { key: 'cinturon_id', label: 'Cinturón', type: 'select', options: state.cat.cinturones.map(c => ({ value: c.id, label: c.color })) },
-    { key: 'dan', label: 'DAN (1–9, solo cinturón negro)', type: 'number', maxLen: 1 },
+    { key: 'dan', label: 'DAN (1–9)', type: 'number', maxLen: 1, showIf: (v) => { const c = cinturonPorId(v.cinturon_id); return !!(c && c.es_negro); } },
     { key: 'fecha', label: 'Fecha del cambio', type: 'date', value: hoy() },
   ]);
   if (!r) return;
   try {
     await api(`/api/atletas/${a.id}/cinturon`, { method: 'POST', body: JSON.stringify({ cinturon_id: parseInt(r.cinturon_id, 10), dan: r.dan ? parseInt(r.dan, 10) : null, fecha_cambio: r.fecha || hoy() }) });
-    toast('Cinturón actualizado'); cerrar(modalDetalle); await cargarLista();
+    toast('Cinturón actualizado'); await cargarLista(); verDetalle(a.id);
   } catch (e) { toast(e.message, 'err'); }
 }
 async function retirar(a) {
   const r = await pedirDatos('Retirar atleta', [{ key: 'fecha', label: 'Fecha de retiro', type: 'date', value: hoy() }, { key: 'motivo', label: 'Motivo (opcional)', type: 'text', maxLen: 80 }]);
   if (!r) return;
-  try { await api(`/api/atletas/${a.id}/retirar`, { method: 'POST', body: JSON.stringify({ fecha: r.fecha || hoy(), motivo: r.motivo || null }) }); toast('Atleta retirado'); cerrar(modalDetalle); await cargarLista(); }
+  try { await api(`/api/atletas/${a.id}/retirar`, { method: 'POST', body: JSON.stringify({ fecha: r.fecha || hoy(), motivo: r.motivo || null }) }); toast('Atleta retirado'); await cargarLista(); verDetalle(a.id); }
   catch (e) { toast(e.message, 'err'); }
 }
 async function reactivar(a) {
   const r = await pedirDatos('Reactivar atleta', [{ key: 'fecha', label: 'Fecha de reactivación', type: 'date', value: hoy() }]);
   if (!r) return;
-  try { await api(`/api/atletas/${a.id}/reactivar`, { method: 'POST', body: JSON.stringify({ fecha: r.fecha || hoy() }) }); toast('Atleta reactivado'); cerrar(modalDetalle); await cargarLista(); }
+  try { await api(`/api/atletas/${a.id}/reactivar`, { method: 'POST', body: JSON.stringify({ fecha: r.fecha || hoy() }) }); toast('Atleta reactivado'); await cargarLista(); verDetalle(a.id); }
   catch (e) { toast(e.message, 'err'); }
 }
 async function eliminar(a) {

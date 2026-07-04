@@ -18,6 +18,9 @@ app.exe
 *.sqlite3
 app.db
 backups/
+
+# Archivos subidos por los usuarios (fotos y documentos de atletas)
+data/
 *.bak
 
 # Archivos de entorno y credenciales sensibles

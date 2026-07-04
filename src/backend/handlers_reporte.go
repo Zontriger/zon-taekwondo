@@ -33,7 +33,7 @@ func (s *Server) handleReporteAtletas(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	pdf := fpdf.New("L", "mm", "A4", "")
+	pdf := fpdf.New("P", "mm", "Letter", "") // carta vertical
 	tr := pdf.UnicodeTranslatorFromDescriptor("") // acentos/ñ
 	pdf.SetTitle("Reporte de Atletas", false)
 	pdf.SetMargins(10, 12, 10)
@@ -60,7 +60,7 @@ func (s *Server) handleReporteAtletas(w http.ResponseWriter, r *http.Request) {
 	cols := []struct {
 		t string
 		w float64
-	}{{"Apellidos y nombres", 78}, {"Cédula", 32}, {"Edad", 16}, {"Escuela", 62}, {"Cinturón", 52}, {"Estado", 37}}
+	}{{"Apellidos y nombres", 62}, {"Cédula", 26}, {"Edad", 13}, {"Escuela", 45}, {"Cinturón", 32}, {"Estado", 18}}
 	var anchoTabla float64
 	for _, c := range cols {
 		anchoTabla += c.w

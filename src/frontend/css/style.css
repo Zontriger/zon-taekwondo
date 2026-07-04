@@ -107,6 +107,16 @@ textarea { resize: vertical; }
 
 /* Dirección: altura fija (3 líneas), sin cambiar tamaño. */
 #a-direccion, #esc-direccion { resize: none; }
+
+/* Caja de ayuda: motivos por los que el botón Guardar está deshabilitado. */
+.form-ayuda {
+  background: #fff8e1; border: 1px solid #f0d98c; border-left: 4px solid var(--warning);
+  border-radius: 8px; padding: .6rem .85rem; color: #7a5b00; font-size: .85rem;
+}
+.form-ayuda .ayuda-title { font-weight: 700; margin-bottom: .3rem; }
+.form-ayuda ul { margin: 0; padding-left: 1.15rem; }
+.form-ayuda li { margin: .12rem 0; }
+.pr-field { display: flex; flex-direction: column; gap: .3rem; }
 .form-error { color: var(--danger); font-size: .85rem; min-height: 1.2em; margin: .4rem 0 0; font-weight: 600; }
 .hint { color: var(--info); font-size: .82rem; margin: .5rem 0 0; font-weight: 600; }
 
