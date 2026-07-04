@@ -4,3 +4,21 @@
 - Añade en las tablas la funcionalidad de poder seleccionar, añade una primera columna en donde, así como hace Odoo, te permite seleccionar un rango de filas, con atajos de teclado de la siguiente forma: En en header de esa columna hay un cuadradito que al presionarlo selecciona todos los registros que se muestran (o sea no TODOS TODOS, solo los que se ven), al volverlo a presionar sí se seleccionan todos todos y al volverlo a presionar se quita la selección, o sea alterna por 3 estados: selecciona los registros visibles, selecciona todos los registros, deselecciona, Y en cada fila su registro tiene también su cuadradito, que al hacer click se selecciona solo ese, si se hace click en otro se selecciona ese otro, ahora son dos seleccionados, al volver a hacer click en un cuadrito de registro seleccionado este se deselecciona, cuando se selecciona uno de un registro de arriba y se mantiene presionado shift y se hace click en otro de un registro de abajo se selecciona ese intervalo de registros. Esto será de mucha utilidad para cuando se genere el PDF, porque puede generar PDF solo a los seleccionados, o eliminar solo a los seleccionados, y ya.
 - El PDF se debe generar a tamaño carta en vertical, no horizontal.
 - Ayudame a crear un gitignore
+
+
+NOTICIAS, EL CLIENTE DIO MÁS INFORMACIÓN DE CÓMO QUIERE EL SISTEMA:
+
+"""
+
+Lo otro que se quisiera es que se llevara por lo menos la partida de nacimiento del atleta en PDF, PDF. La cédula del representante en PDF. La cédula del atleta en PDF. Lo, los certificados de los cinturones de cada atleta en PDF.
+
+Entonces, bueno, no sé si se, si, si eso se puede. Así como se lleva la foto del atleta en una, en una, en una página aparte, llevar documentación. O sea, que si dicen: «Mira, necesitamos la cédula de identidad del atleta». Entonces: «Mira, aquí está la cédula de identidad». «Se necesita la, la partida de nacimiento del atleta». «Aquí está la partida de nacimiento». Que lo puedan imprimir ahí en el mismo, en el mismo, en la misma escuela.
+
+Y si la cédula, si la cédula de identidad, este, ya está vencida y la van a renovar, que se pueda renovar, pues. O sea, o sea: «Mira, este, la coño, la foto es una foto cuando tenía 9 años y ahora tiene 18». Entonces, pueden renovar la foto, ¿me entiendes? Eso lo, eso lo que se quiere. Pero la, la ficha es la ficha técnica del atleta, pues. Nombre, apellido, la escuela, quién es su, su maestro, quiénes son, cuál es su tipo de, de sangre, fecha de nacimiento, la fecha de, fecha de inicio del taekwondo, todo eso.
+
+Pero sería bueno, Ricardo, que bueno, que también lo, lo vieras, lo veamos para ver qué, cuáles son los, los detalles y qué es lo que se va a corregir. Bueno, y gracias, chamo. Gracias por, por lo que estás haciendo. Ellos cumplen años el 22 de julio. 22 de este mes, por cierto. Y bueno, sería un buen regalo para ellos.
+
+"""
+
+- Sería genial añadir una foto en la ficha del atleta que se pueda actualizar para poder ver quién es el atleta. Recuerda, siempre validar el formato, como es una foto/imagen que se pueda subir solo jpg, jpeg, png y no sé si me falte uno, con un máximo de tamaño de foto acorde, no sé si 5 MB estén bien. Esto igual para los PDF, subir PDF solo extensión .pdf y con máximo de megas, tal vez 5 MB también esté bien. Esto del límite de MB de subida por archivo, sería ideal poder cambiarlo en una sección nueva "Configuración" (solo admin).
+- Para los documentos del atleta, creo que mejor que hacer un "Subir partida de nacimiento" o "Subir cédula de identidad" específico e individual, hacer como un repositorio por cada atleta de documentos en su ficha, que diga como "Documentos" y allí pueda subirse los archivos PDF, que se vea como un grid cuadricula en donde se pueda ver una pequeña previsualización del contenido del PDF y obligatorio asignarle un nombre al documento pues para que el usuario lo pueda identificar, y que pueda hacer como una especie de CRUD, un click es seleccionar el archivo y sale 3 botones, Abrir, Descargar o Eliminar, doble click para Abrirlo directamente (o sea, en una nueva pestaña abrir el previsualizador nativo del navegador). Igual si se seleccionan varios poder abrir, descargar o eliminar todos los seleccionados (creo que es buena idea que si se descargan varios, comprimirlo en un zip llamado "{{nombre atleta}}_documentos.zip" o algo así
