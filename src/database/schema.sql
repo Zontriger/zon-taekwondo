@@ -94,6 +94,25 @@ CREATE TABLE entrenador (
 );
 
 -- ----------------------------------------------------------------------------
+-- 4b. MAESTRO (entrenador deportivo que dicta clases; distinto de la CUENTA de
+--     acceso 'entrenador'). Se asigna a cada atleta. Puede o no tener login.
+-- ----------------------------------------------------------------------------
+
+CREATE TABLE maestro (
+    id            INTEGER PRIMARY KEY,
+    nombres       TEXT NOT NULL,
+    apellidos     TEXT NOT NULL,
+    cedula_tipo   TEXT CHECK (cedula_tipo IN ('V','E','P')),
+    cedula_numero TEXT,
+    telefono      TEXT,
+    escuela_id    INTEGER REFERENCES escuela(id),
+    cinturon_id   INTEGER REFERENCES cinturon(id),
+    dan           INTEGER CHECK (dan BETWEEN 1 AND 9),
+    activo        INTEGER NOT NULL DEFAULT 1 CHECK (activo IN (0,1)),
+    creado_en     TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- ----------------------------------------------------------------------------
 -- 5. ATLETA
 --    - La cédula = TIPO (V/E/P) + NÚMERO; la combinación es única (idx_atleta_cedula).
 --      Ambos NULL-ables: un menor puede no tener cédula.
@@ -122,6 +141,8 @@ CREATE TABLE atleta (
     parroquia_id           INTEGER REFERENCES parroquia(id),
     direccion_detalle      TEXT,                          -- sector, calle, casa/apto, habitación
     escuela_id             INTEGER REFERENCES escuela(id),
+    maestro_id             INTEGER REFERENCES maestro(id), -- entrenador que lo forma
+    tipo_sangre            TEXT,                           -- O+, O-, A+, ... (enum a nivel app)
     fecha_inscripcion      TEXT NOT NULL,                 -- YYYY-MM-DD
     inscripcion_dia_exacto INTEGER NOT NULL DEFAULT 1 CHECK (inscripcion_dia_exacto IN (0,1)),
     creado_en              TEXT NOT NULL DEFAULT (datetime('now'))

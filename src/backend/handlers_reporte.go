@@ -1,9 +1,12 @@
 package backend
 
 import (
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -145,6 +148,124 @@ func (s *Server) handleReporteAtletas(w http.ResponseWriter, r *http.Request) {
 		// Ya se enviaron headers; solo se registra.
 		fmt.Printf("[reporte] error generando PDF: %v\n", err)
 	}
+}
+
+// handleFichaAtleta genera la ficha técnica de un atleta en PDF (carta vertical).
+func (s *Server) handleFichaAtleta(w http.ResponseWriter, id int64) {
+	a, err := database.GetAtleta(s.db, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		writeErr(w, http.StatusNotFound, "atleta no encontrado")
+		return
+	}
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
+
+	pdf := fpdf.New("P", "mm", "Letter", "")
+	tr := pdf.UnicodeTranslatorFromDescriptor("")
+	pdf.SetMargins(15, 15, 15)
+	pdf.AddPage()
+
+	pdf.SetFont("Arial", "B", 16)
+	pdf.SetTextColor(0, 47, 108)
+	pdf.CellFormat(0, 10, tr("SIGAT — Ficha Técnica del Atleta"), "", 1, "L", false, 0, "")
+	pdf.SetDrawColor(0, 47, 108)
+	pdf.SetLineWidth(0.5)
+	y := pdf.GetY()
+	pdf.Line(15, y, 201, y)
+	pdf.Ln(4)
+
+	// Foto (si existe el archivo en disco).
+	if a.FotoPath != nil && *a.FotoPath != "" {
+		if _, e := os.Stat(*a.FotoPath); e == nil {
+			pdf.ImageOptions(*a.FotoPath, 160, 30, 36, 0, false, fpdf.ImageOptions{ImageType: "", ReadDpi: true}, 0, "")
+		}
+	}
+
+	pdf.SetFont("Arial", "B", 14)
+	pdf.SetTextColor(20, 20, 20)
+	pdf.CellFormat(140, 8, tr(a.Apellidos+", "+a.Nombres), "", 1, "L", false, 0, "")
+	pdf.Ln(1)
+
+	campo := func(label, valor string) {
+		if valor == "" {
+			valor = "—"
+		}
+		pdf.SetFont("Arial", "B", 9)
+		pdf.SetTextColor(90, 90, 90)
+		pdf.CellFormat(48, 6, tr(label), "", 0, "L", false, 0, "")
+		pdf.SetFont("Arial", "", 10)
+		pdf.SetTextColor(20, 20, 20)
+		pdf.MultiCell(0, 6, tr(valor), "", "L", false)
+	}
+	sec := func(t string) {
+		pdf.Ln(2)
+		pdf.SetFont("Arial", "B", 11)
+		pdf.SetTextColor(0, 47, 108)
+		pdf.CellFormat(0, 7, tr(t), "B", 1, "L", false, 0, "")
+		pdf.Ln(1)
+	}
+
+	insc := a.FechaInscripcion
+	if !a.InscripcionDiaExacto && len(insc) >= 7 {
+		insc = insc[:7]
+	}
+	sec("Datos personales")
+	campo("Cédula", cedulaTxt(a.CedulaTipo, a.CedulaNumero))
+	campo("Fecha de nacimiento", fmt.Sprintf("%s  (%d años)", a.FechaNacimiento, a.Edad))
+	campo("Tipo de sangre", derefOr(a.TipoSangre))
+	campo("Teléfono principal", derefOr(a.Telefono))
+	if len(a.TelefonosContacto) > 0 {
+		campo("Teléfonos de contacto", strings.Join(a.TelefonosContacto, ", "))
+	}
+
+	sec("Formación")
+	campo("Escuela", a.EscuelaNombre)
+	campo("Entrenador (maestro)", a.MaestroNombre)
+	campo("Cinturón actual", cinturonTxt(a.CinturonColor, a.CinturonDan))
+	campo("Fecha de inicio", insc)
+	campo("Estado", a.Estado)
+
+	sec("Ubicación")
+	ubic := strings.Join(soloNoVacios(a.ParroquiaNom, a.MunicipioNom, a.CiudadNom, a.EstadoNom), ", ")
+	campo("Ubicación", ubic)
+	campo("Dirección", derefOr(a.DireccionDetalle))
+
+	if r := a.Representante; r != nil {
+		sec("Representante")
+		campo("Nombre", strings.TrimSpace(derefOr(r.Nombres)+" "+derefOr(r.Apellidos)))
+		campo("Cédula", cedulaTxt(r.CedulaTipo, r.CedulaNumero))
+		campo("Teléfono", derefOr(r.Telefono))
+		campo("Parentesco", derefOr(r.Parentesco))
+	}
+
+	pdf.SetY(-15)
+	pdf.SetFont("Arial", "I", 8)
+	pdf.SetTextColor(120, 120, 120)
+	pdf.CellFormat(0, 8, tr("Generado "+time.Now().Format("2006-01-02 15:04")+" — SIGAT"), "", 0, "C", false, 0, "")
+
+	w.Header().Set("Content-Type", "application/pdf")
+	w.Header().Set("Content-Disposition", `attachment; filename="ficha-atleta.pdf"`)
+	if err := pdf.Output(w); err != nil {
+		fmt.Printf("[ficha] error generando PDF: %v\n", err)
+	}
+}
+
+func derefOr(p *string) string {
+	if p == nil {
+		return ""
+	}
+	return *p
+}
+func soloNoVacios(vs ...string) []string {
+	out := []string{}
+	for _, v := range vs {
+		if strings.TrimSpace(v) != "" {
+			out = append(out, v)
+		}
+	}
+	return out
 }
 
 func cedulaTxt(tipo, numero *string) string {

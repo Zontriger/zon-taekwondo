@@ -38,6 +38,8 @@ var atletaFields = map[string]fieldSpec{
 	"fecha_inscripcion": {"Fecha de inscripción", kDate, "a.fecha_inscripcion", ""},
 	"fecha_registro":    {"Fecha de registro", kDate, "date(a.creado_en)", ""},
 	"escuela":           {"Escuela", kSelect, "a.escuela_id", "escuelas"},
+	"maestro":           {"Entrenador", kSelect, "a.maestro_id", "maestros"},
+	"tipo_sangre":       {"Tipo de sangre", kText, "a.tipo_sangre", ""},
 	"estado":            {"Estado", kSelect, "a.estado_id", "estados"},
 	"ciudad":            {"Ciudad", kSelect, "a.ciudad_id", "ciudades"},
 	"municipio":         {"Municipio", kSelect, "a.municipio_id", "municipios"},
@@ -210,8 +212,9 @@ var kindName = map[fieldKind]string{kText: "text", kNumber: "number", kDate: "da
 
 // FilterFields devuelve los campos filtrables (orden estable) para la UI.
 func FilterFields() []FilterField {
-	orden := []string{"nombres", "apellidos", "cedula", "telefono", "edad", "fecha_inscripcion", "fecha_registro",
-		"escuela", "estado", "ciudad", "municipio", "parroquia", "cinturon", "estado_actividad"}
+	orden := []string{"nombres", "apellidos", "cedula", "telefono", "edad", "tipo_sangre",
+		"fecha_inscripcion", "fecha_registro", "escuela", "maestro",
+		"estado", "ciudad", "municipio", "parroquia", "cinturon", "estado_actividad"}
 	out := make([]FilterField, 0, len(orden))
 	for _, k := range orden {
 		s := atletaFields[k]

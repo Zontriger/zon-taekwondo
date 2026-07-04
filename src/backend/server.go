@@ -53,6 +53,8 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/escuelas", s.requireAuth(s.handleEscuelas))
 	mux.HandleFunc("/api/escuelas/", s.requireAuth(s.handleEscuelaItem))
 	mux.HandleFunc("/api/maestros/", s.requireAuth(s.handleMaestros))
+	mux.HandleFunc("/api/entrenadores", s.requireAuth(s.handleEntrenadores))
+	mux.HandleFunc("/api/entrenadores/", s.requireAuth(s.handleEntrenadorItem))
 
 	// --- Usuarios del sistema (solo admin, verificado en el handler) ---
 	mux.HandleFunc("/api/usuarios", s.requireAuth(s.handleUsuarios))

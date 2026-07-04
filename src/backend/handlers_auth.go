@@ -139,9 +139,15 @@ func (s *Server) handleCatalogos(w http.ResponseWriter, r *http.Request) {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
+	maestros, err := database.ListMaestros(s.db)
+	if err != nil {
+		writeErr(w, http.StatusInternalServerError, err.Error())
+		return
+	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"cinturones":    cinturones,
 		"escuelas":      escuelas,
+		"maestros":      maestros,
 		"campos_filtro": database.FilterFields(),
 	})
 }

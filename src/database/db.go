@@ -131,6 +131,33 @@ func migrate(db *sql.DB) error {
 	if err := migrarGeografia(db); err != nil {
 		return err
 	}
+	if err := migrarEntrenadores(db); err != nil {
+		return err
+	}
+	return nil
+}
+
+// migrarEntrenadores crea la tabla 'maestro' (entrenadores deportivos) y agrega
+// a 'atleta' las columnas maestro_id y tipo_sangre (idempotente).
+func migrarEntrenadores(db *sql.DB) error {
+	if _, err := db.Exec(`CREATE TABLE IF NOT EXISTS maestro (
+		id INTEGER PRIMARY KEY, nombres TEXT NOT NULL, apellidos TEXT NOT NULL,
+		cedula_tipo TEXT, cedula_numero TEXT, telefono TEXT,
+		escuela_id INTEGER REFERENCES escuela(id), cinturon_id INTEGER REFERENCES cinturon(id),
+		dan INTEGER, activo INTEGER NOT NULL DEFAULT 1,
+		creado_en TEXT NOT NULL DEFAULT (datetime('now')))`); err != nil {
+		return err
+	}
+	if !columnExists(db, "atleta", "maestro_id") {
+		if _, err := db.Exec(`ALTER TABLE atleta ADD COLUMN maestro_id INTEGER REFERENCES maestro(id)`); err != nil {
+			return err
+		}
+	}
+	if !columnExists(db, "atleta", "tipo_sangre") {
+		if _, err := db.Exec(`ALTER TABLE atleta ADD COLUMN tipo_sangre TEXT`); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

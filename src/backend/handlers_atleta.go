@@ -105,6 +105,8 @@ func (s *Server) handleAtletaItem(w http.ResponseWriter, r *http.Request) {
 		s.retirarAtleta(w, r, id)
 	case "reactivar":
 		s.reactivarAtleta(w, r, id)
+	case "ficha.pdf":
+		s.handleFichaAtleta(w, id)
 	default:
 		writeErr(w, http.StatusNotFound, "recurso no encontrado")
 	}

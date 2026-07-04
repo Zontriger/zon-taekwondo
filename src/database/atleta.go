@@ -23,6 +23,8 @@ type AtletaInput struct {
 	ParroquiaID          *int64         `json:"parroquia_id"`
 	DireccionDetalle     *string        `json:"direccion_detalle"`
 	EscuelaID            *int64         `json:"escuela_id"`
+	MaestroID            *int64         `json:"maestro_id"`
+	TipoSangre           *string        `json:"tipo_sangre"`
 	FechaInscripcion     string         `json:"fecha_inscripcion"`
 	InscripcionDiaExacto bool           `json:"inscripcion_dia_exacto"`
 	Representante        *Representante `json:"representante"`
@@ -45,11 +47,11 @@ func CreateAtleta(db *sql.DB, in AtletaInput, entrenadorID int64) (int64, error)
 		INSERT INTO atleta
 			(foto_path, nombres, apellidos, cedula_tipo, cedula_numero, fecha_nacimiento,
 			 telefono, estado_id, ciudad_id, municipio_id, parroquia_id, direccion_detalle, escuela_id,
-			 fecha_inscripcion, inscripcion_dia_exacto)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+			 maestro_id, tipo_sangre, fecha_inscripcion, inscripcion_dia_exacto)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
 		in.FotoPath, in.Nombres, in.Apellidos, in.CedulaTipo, in.CedulaNumero, in.FechaNacimiento,
 		in.Telefono, in.EstadoID, in.CiudadID, in.MunicipioID, in.ParroquiaID, in.DireccionDetalle,
-		in.EscuelaID, in.FechaInscripcion, boolToInt(in.InscripcionDiaExacto))
+		in.EscuelaID, in.MaestroID, in.TipoSangre, in.FechaInscripcion, boolToInt(in.InscripcionDiaExacto))
 	if err != nil {
 		return 0, mapErr(err)
 	}
@@ -104,11 +106,11 @@ func UpdateAtleta(db *sql.DB, id int64, in AtletaInput, entrenadorID int64) erro
 		UPDATE atleta SET
 			foto_path=?, nombres=?, apellidos=?, cedula_tipo=?, cedula_numero=?, fecha_nacimiento=?,
 			telefono=?, estado_id=?, ciudad_id=?, municipio_id=?, parroquia_id=?, direccion_detalle=?,
-			escuela_id=?, fecha_inscripcion=?, inscripcion_dia_exacto=?
+			escuela_id=?, maestro_id=?, tipo_sangre=?, fecha_inscripcion=?, inscripcion_dia_exacto=?
 		WHERE id=?`,
 		in.FotoPath, in.Nombres, in.Apellidos, in.CedulaTipo, in.CedulaNumero, in.FechaNacimiento,
 		in.Telefono, in.EstadoID, in.CiudadID, in.MunicipioID, in.ParroquiaID, in.DireccionDetalle,
-		in.EscuelaID, in.FechaInscripcion, boolToInt(in.InscripcionDiaExacto), id)
+		in.EscuelaID, in.MaestroID, in.TipoSangre, in.FechaInscripcion, boolToInt(in.InscripcionDiaExacto), id)
 	if err != nil {
 		return mapErr(err)
 	}
@@ -150,21 +152,23 @@ func GetAtleta(db *sql.DB, id int64) (*Atleta, error) {
 		SELECT a.id, a.foto_path, a.nombres, a.apellidos, a.cedula_tipo, a.cedula_numero,
 		       a.fecha_nacimiento, a.telefono,
 		       a.estado_id, a.ciudad_id, a.municipio_id, a.parroquia_id, a.direccion_detalle,
-		       a.escuela_id, a.fecha_inscripcion, a.inscripcion_dia_exacto,
-		       e.nombre, es.nombre, ci.nombre, m.nombre, p.nombre
+		       a.escuela_id, a.maestro_id, a.tipo_sangre, a.fecha_inscripcion, a.inscripcion_dia_exacto,
+		       e.nombre, es.nombre, ci.nombre, m.nombre, p.nombre,
+		       (ma.nombres || ' ' || ma.apellidos)
 		  FROM atleta a
 		  LEFT JOIN escuela e   ON e.id = a.escuela_id
 		  LEFT JOIN estado es   ON es.id = a.estado_id
 		  LEFT JOIN ciudad ci   ON ci.id = a.ciudad_id
 		  LEFT JOIN municipio m ON m.id = a.municipio_id
 		  LEFT JOIN parroquia p ON p.id = a.parroquia_id
+		  LEFT JOIN maestro ma  ON ma.id = a.maestro_id
 		 WHERE a.id = ?`, id).Scan(
 		&a.ID, &a.FotoPath, &a.Nombres, &a.Apellidos, &a.CedulaTipo, &a.CedulaNumero,
 		&a.FechaNacimiento, &a.Telefono,
 		&a.EstadoID, &a.CiudadID, &a.MunicipioID, &a.ParroquiaID, &a.DireccionDetalle,
-		&a.EscuelaID, &a.FechaInscripcion, &diaExacto,
+		&a.EscuelaID, &a.MaestroID, &a.TipoSangre, &a.FechaInscripcion, &diaExacto,
 		&nullStr{&a.EscuelaNombre}, &nullStr{&a.EstadoNom}, &nullStr{&a.CiudadNom},
-		&nullStr{&a.MunicipioNom}, &nullStr{&a.ParroquiaNom})
+		&nullStr{&a.MunicipioNom}, &nullStr{&a.ParroquiaNom}, &nullStr{&a.MaestroNombre})
 	if err != nil {
 		return nil, err
 	}

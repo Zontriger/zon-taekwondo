@@ -8,7 +8,7 @@ const $$ = (s, r = document) => [...r.querySelectorAll(s)];
 
 const state = {
   me: null,
-  cat: { cinturones: [], escuelas: [], campos_filtro: [] },
+  cat: { cinturones: [], escuelas: [], maestros: [], campos_filtro: [] },
   geo: { estados: [], ciudades: [], municipios: [], parroquias: [] },
   filtro: { q: '', match: 'all', cond: [] },
   pageSize: 25,
@@ -26,7 +26,8 @@ const BELT_COLORS = {
 };
 const MESES = ['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const PARENTESCOS_COMUNES = ['Madre','Padre','Tutor legal','Abuelo/a','Tío/a','Hermano/a'];
-const ADMIN_ROUTES = ['escuelas','usuarios','datos','respaldo'];
+const ADMIN_ROUTES = ['escuelas','entrenadores','usuarios','datos','respaldo'];
+const TIPOS_SANGRE = ['O+','O-','A+','A-','B+','B-','AB+','AB-'];
 const NAME_ALLOW = /[\p{L} .'\-]/u;
 const PLACE_ALLOW = /[\p{L}0-9 .,'\-/()]/u;
 const USER_ALLOW = /[A-Za-z0-9._\-]/;
@@ -52,6 +53,7 @@ const ICON = {
   chevronL:  svg('<polyline points="15 18 9 12 15 6"/>'),
   arrow:     svg('<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>'),
   x:         svg('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'),
+  pdf:       svg('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>'),
 };
 const STATE_DOT = '<svg class="ico-dot" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>';
 
@@ -202,6 +204,7 @@ function mostrarRuta(route) {
   $$('#sidebar .nav-item[data-route]').forEach(a => a.classList.toggle('active', a.dataset.route === route));
   toggleSidebar(false);
   if (route === 'escuelas') cargarEscuelas();
+  else if (route === 'entrenadores') cargarEntrenadores();
   else if (route === 'usuarios') cargarUsuarios();
   else if (route === 'datos') cargarMaestro(state.maestroTipo);
 }
@@ -214,6 +217,9 @@ async function cargarCatalogos() {
   llenarSelect($('#f-cinturon'), cinturones, 'Todos los cinturones', c => c.color);
   llenarSelect($('#a-escuela'), escuelas, 'No aplica', e => `${e.nombre} (${e.municipio_nombre})`);
   llenarSelect($('#a-cinturon'), cinturones, 'No aplica', c => c.color);
+  llenarSelect($('#a-maestro'), state.cat.maestros, 'No aplica', m => `${m.nombres} ${m.apellidos}`);
+  llenarSelect($('#ent-escuela'), escuelas, 'No aplica', e => `${e.nombre} (${e.municipio_nombre})`);
+  llenarSelect($('#ent-cinturon'), cinturones, 'No aplica', c => c.color);
 }
 async function cargarGeo() {
   state.geo = await api('/api/geo');
@@ -228,6 +234,7 @@ function nombreGeo(kind, id) { const o = porId(state.geo[kind], id); return o ? 
 
 const CAT_OPTS = {
   escuelas:   () => state.cat.escuelas.map(e => ({ id: e.id, label: e.nombre })),
+  maestros:   () => (state.cat.maestros || []).map(m => ({ id: m.id, label: `${m.nombres} ${m.apellidos}` })),
   cinturones: () => state.cat.cinturones.map(c => ({ id: c.id, label: c.color })),
   estados:    () => state.geo.estados.map(e => ({ id: e.id, label: e.nombre })),
   ciudades:   () => state.geo.ciudades.map(c => ({ id: c.id, label: c.nombre })),
@@ -314,9 +321,10 @@ function DataTable(opts) {
   };
   ['.dt-desde', '.dt-hasta'].forEach(s => { q(s).addEventListener('change', commit); q(s).addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); commit(); } }); limitInput(q(s), { allow: /[0-9]/, maxLen: 7 }); });
   if (opts.actions) q('.dt-tbody').addEventListener('click', e => {
-    const ed = e.target.closest('[data-edit]'), de = e.target.closest('[data-del]');
+    const ed = e.target.closest('[data-edit]'), de = e.target.closest('[data-del]'), vr = e.target.closest('[data-ver]');
     if (ed && opts.onEdit) opts.onEdit(porId(st.data, ed.dataset.edit));
     if (de && opts.onDelete) opts.onDelete(porId(st.data, de.dataset.del));
+    if (vr && opts.onVer) opts.onVer(porId(st.data, vr.dataset.ver));
   });
 
   function filtered() {
@@ -511,6 +519,8 @@ function abrirForm(atleta) {
     (atleta.telefonos_contacto || []).forEach(t => agregarContacto(t));
     geoSet(GA(), atleta);
     $('#a-escuela').value = atleta.escuela_id || '';
+    $('#a-maestro').value = atleta.maestro_id || '';
+    $('#a-tipo-sangre').value = atleta.tipo_sangre || '';
     $('#a-direccion').value = atleta.direccion_detalle || '';
     escribirFecha('a-ins', atleta.fecha_inscripcion, !atleta.inscripcion_dia_exacto);
     $('#a-ins-nodia').checked = !atleta.inscripcion_dia_exacto;
@@ -681,6 +691,7 @@ $('#form-atleta').addEventListener('submit', async (e) => {
     fecha_nacimiento: readNac(), telefono: valOrNull('#a-telefono'), telefonos_contacto: contactosVals(),
     estado_id: loc.estado_id, ciudad_id: loc.ciudad_id, municipio_id: loc.municipio_id, parroquia_id: loc.parroquia_id,
     direccion_detalle: valOrNull('#a-direccion'), escuela_id: intOrNull('#a-escuela'),
+    maestro_id: intOrNull('#a-maestro'), tipo_sangre: valOrNull('#a-tipo-sangre'),
     fecha_inscripcion: readIns(), inscripcion_dia_exacto: !$('#a-ins-nodia').checked,
     representante: representantePayload(),
   };
@@ -721,8 +732,10 @@ async function verDetalle(id) {
       ${kv('Cédula', cedulaFmt(a.cedula_tipo, a.cedula_numero))}
       ${kv('Edad', a.edad + ' años' + (a.es_menor ? ' (menor)' : ''))}
       ${kv('Nacimiento', a.fecha_nacimiento)}
+      ${kv('Tipo de sangre', a.tipo_sangre || '—')}
       ${kv('Inscripción', insc)}
       ${kv('Escuela', a.escuela_nombre || '—')}
+      ${kv('Entrenador', a.maestro_nombre || '—')}
       ${kv('Ubicación', ubic)}
       ${kv('Teléfono principal', a.telefono || '—')}
       ${kv('Teléfonos de contacto', contactos)}
@@ -740,12 +753,16 @@ async function verDetalle(id) {
     <fieldset><legend>Periodos de actividad</legend>
       <ul class="timeline">${(a.periodos || []).map(p => `<li><b>${p.fecha_inicio}</b> <span class="arrow-sep">${ICON.arrow}</span> ${p.fecha_fin ? esc(p.fecha_fin) : '<span class="state-activo">activo</span>'} ${p.motivo_retiro ? `<small>(${esc(p.motivo_retiro)})</small>` : ''}</li>`).join('')}</ul>
     </fieldset>
+    <div class="det-actions">
+      <button class="btn btn-sm" id="d-ficha">${ICON.pdf}<span>Ficha técnica (PDF)</span></button>
+    </div>
     ${isAdmin() ? `<div class="det-actions">
       <button class="btn btn-sm" id="d-editar">${ICON.edit}<span>Editar</span></button>
       <button class="btn btn-sm" id="d-cinturon">${ICON.belt}<span>Cambiar cinturón</span></button>
       ${a.estado === 'activo' ? `<button class="btn btn-sm" id="d-retirar">${ICON.retire}<span>Retirar</span></button>` : `<button class="btn btn-sm" id="d-reactivar">${ICON.reactivate}<span>Reactivar</span></button>`}
       <button class="btn btn-sm btn-danger" id="d-eliminar">${ICON.trash}<span>Eliminar</span></button>
     </div>` : ''}`;
+  $('#d-ficha').onclick = () => window.open('/api/atletas/' + a.id + '/ficha.pdf', '_blank');
   if (isAdmin()) {
     $('#d-editar').onclick = () => { retornoFicha = a.id; cerrar(modalDetalle); abrirForm(a); };
     $('#d-cinturon').onclick = () => cambiarCinturon(a);
@@ -903,6 +920,91 @@ $('#form-usuario').addEventListener('submit', async (e) => {
   } catch (err) {
     if (err.fields) { const map = { username: '#usr-username', password: '#usr-pass', nombres: '#usr-nombre' }; Object.keys(err.fields).forEach(k => { if (map[k]) $(map[k]).classList.add('field-err'); }); $('#usr-error').textContent = Object.values(err.fields)[0]; }
     else $('#usr-error').textContent = err.message;
+  }
+});
+
+/* ============================================================================
+   ENTRENADORES (maestros)
+   ============================================================================ */
+const modalEntrenador = $('#modal-entrenador');
+let dtEntrenadores;
+async function cargarEntrenadores() {
+  let data;
+  try { data = await api('/api/entrenadores'); } catch (e) { return toast(e.message, 'err'); }
+  if (!dtEntrenadores) dtEntrenadores = DataTable({
+    mount: '#dt-entrenadores',
+    columns: [
+      { label: 'Nombre', value: m => `${m.nombres} ${m.apellidos}`.trim(), type: 'text' },
+      { label: 'Cédula', value: m => cedulaFmt(m.cedula_tipo, m.cedula_numero), type: 'text' },
+      { label: 'Teléfono', value: m => m.telefono || '—', type: 'text', filter: false },
+      { label: 'Escuela', value: m => m.escuela_nombre || '—', type: 'text' },
+      { label: 'Cinturón', value: m => m.cinturon_color ? (m.cinturon_color + (m.dan ? ` ${m.dan}° DAN` : '')) : '—', type: 'text', html: m => chipCinturon(m.cinturon_color, m.dan) },
+      { label: 'Atletas', value: m => m.num_atletas, type: 'number', filter: false },
+      { label: 'Activo', value: m => m.activo ? 'Sí' : 'No', type: 'bool', html: m => m.activo ? '<span class="chip state-activo">Sí</span>' : '<span class="chip state-retirado">No</span>' },
+    ],
+    actions: m => `<button class="btn btn-sm" data-ver="${m.id}" title="Ver sus atletas">${svg('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>')}</button>` + accionesHTML(m.id),
+    onVer: m => verAtletasDe(m), onEdit: m => abrirEntrenador(m), onDelete: m => borrarEntrenador(m),
+  });
+  dtEntrenadores.setData(data);
+}
+function verAtletasDe(m) {
+  state.filtro.q = ''; $('#f-texto').value = '';
+  state.filtro.match = 'all';
+  state.filtro.cond = [{ field: 'maestro', op: 'eq', value: String(m.id) }];
+  $('#f-fdesde').value = ''; $('#f-fhasta').value = '';
+  renderAdvRows(); syncFacetsFromCond();
+  irARuta('atletas'); applyFiltro();
+  toast(`Mostrando atletas de ${m.nombres} ${m.apellidos}`);
+}
+$('#btn-nuevo-entrenador').addEventListener('click', () => abrirEntrenador(null));
+$('#ent-cinturon').addEventListener('change', actualizarEntDan);
+function actualizarEntDan() { const c = cinturonPorId($('#ent-cinturon').value); const negro = c && c.es_negro; $('#ent-dan-wrap').classList.toggle('hidden', !negro); if (!negro) $('#ent-dan').value = ''; }
+function abrirEntrenador(m) {
+  $('#form-entrenador').reset();
+  $('#ent-error').textContent = '';
+  $$('#form-entrenador .field-err').forEach(el => el.classList.remove('field-err'));
+  $('#ent-title').textContent = m ? 'Editar entrenador' : 'Nuevo entrenador';
+  $('#ent-id').value = m ? m.id : '';
+  $('#ent-cedula-tipo').value = (m && m.cedula_tipo) || 'V';
+  if (m) {
+    $('#ent-nombres').value = m.nombres; $('#ent-apellidos').value = m.apellidos;
+    $('#ent-cedula-numero').value = m.cedula_numero || '';
+    $('#ent-telefono').value = m.telefono || '';
+    $('#ent-escuela').value = m.escuela_id || '';
+    $('#ent-cinturon').value = m.cinturon_id || '';
+    $('#ent-dan').value = m.dan || '';
+    $('#ent-activo').checked = !!m.activo;
+  } else { $('#ent-activo').checked = true; }
+  actualizarEntDan();
+  abrir(modalEntrenador);
+}
+async function borrarEntrenador(m) {
+  if (!await confirmar(`¿Eliminar al entrenador "${m.nombres} ${m.apellidos}"?`, { peligro: true, ok: 'Eliminar' })) return;
+  try { await api('/api/entrenadores/' + m.id, { method: 'DELETE' }); toast('Entrenador eliminado'); await cargarCatalogos(); cargarEntrenadores(); }
+  catch (e) { toast(e.message, 'err'); }
+}
+$('#form-entrenador').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  $('#ent-error').textContent = '';
+  $$('#form-entrenador .field-err').forEach(el => el.classList.remove('field-err'));
+  const cedNum = valOrNull('#ent-cedula-numero');
+  const danVisible = !$('#ent-dan-wrap').classList.contains('hidden');
+  const body = {
+    nombres: val('#ent-nombres'), apellidos: val('#ent-apellidos'),
+    cedula_tipo: cedNum ? val('#ent-cedula-tipo') : null, cedula_numero: cedNum,
+    telefono: valOrNull('#ent-telefono'),
+    escuela_id: intOrNull('#ent-escuela'), cinturon_id: intOrNull('#ent-cinturon'),
+    dan: (danVisible && $('#ent-dan').value) ? parseInt($('#ent-dan').value, 10) : null,
+    activo: $('#ent-activo').checked,
+  };
+  const id = $('#ent-id').value;
+  try {
+    if (id) await api('/api/entrenadores/' + id, { method: 'PUT', body: JSON.stringify(body) });
+    else await api('/api/entrenadores', { method: 'POST', body: JSON.stringify(body) });
+    toast('Entrenador guardado'); cerrar(modalEntrenador); await cargarCatalogos(); cargarEntrenadores();
+  } catch (err) {
+    if (err.fields) { const map = { nombres: '#ent-nombres', apellidos: '#ent-apellidos', cedula_numero: '#ent-cedula-numero', dan: '#ent-dan' }; Object.keys(err.fields).forEach(k => { if (map[k]) $(map[k]).classList.add('field-err'); }); $('#ent-error').textContent = Object.values(err.fields)[0]; }
+    else $('#ent-error').textContent = err.message;
   }
 });
 
@@ -1066,7 +1168,8 @@ function conectarWS() {
       cargarGeo(); cargarCatalogos();
       if (state.route === 'datos') cargarMaestro(state.maestroTipo);
       if (state.route === 'escuelas') cargarEscuelas();
-    } else if (e.recurso === 'usuario' && state.route === 'usuarios') cargarUsuarios();
+    } else if (e.recurso === 'maestro') { cargarCatalogos(); if (state.route === 'entrenadores') cargarEntrenadores(); }
+    else if (e.recurso === 'usuario' && state.route === 'usuarios') cargarUsuarios();
     if (!mio && e.por) toast(`${e.por} actualizó datos`, 'ok');
   };
 }
@@ -1101,6 +1204,10 @@ function initLimiters() {
   ['#esc-nombre', '#mst-nombre'].forEach(s => limitInput($(s), { allow: PLACE_ALLOW, maxLen: 80 }));
   limitInput($('#usr-nombre'), { allow: NAME_ALLOW, maxLen: 80 });
   limitInput($('#usr-username'), { allow: USER_ALLOW, maxLen: 40 });
+  ['#ent-nombres', '#ent-apellidos'].forEach(s => limitInput($(s), { allow: NAME_ALLOW, maxLen: 60 }));
+  limitInput($('#ent-cedula-numero'), { allow: /[0-9]/, maxLen: 9 });
+  limitInput($('#ent-telefono'), { allow: /[0-9+\-\s()]/ });
+  limitInput($('#ent-dan'), { allow: /[1-9]/, maxLen: 1 });
   limitInput($('#a-nac-dia'), { allow: /[0-9]/, maxLen: 2, max: 31 });
   limitInput($('#a-nac-anio'), { allow: /[0-9]/, maxLen: 4 });
   limitInput($('#a-ins-dia'), { allow: /[0-9]/, maxLen: 2, max: 31 });

@@ -53,6 +53,24 @@ type Escuela struct {
 	Activa       bool    `json:"activa"`
 }
 
+// Maestro es el entrenador deportivo que forma a los atletas (distinto de la
+// cuenta de acceso Entrenador). Se asigna a cada atleta.
+type Maestro struct {
+	ID            int64   `json:"id"`
+	Nombres       string  `json:"nombres"`
+	Apellidos     string  `json:"apellidos"`
+	CedulaTipo    *string `json:"cedula_tipo"`
+	CedulaNumero  *string `json:"cedula_numero"`
+	Telefono      *string `json:"telefono"`
+	EscuelaID     *int64  `json:"escuela_id"`
+	EscuelaNombre string  `json:"escuela_nombre,omitempty"`
+	CinturonID    *int64  `json:"cinturon_id"`
+	CinturonColor string  `json:"cinturon_color,omitempty"`
+	Dan           *int    `json:"dan"`
+	Activo        bool    `json:"activo"`
+	NumAtletas    int     `json:"num_atletas"`
+}
+
 type Representante struct {
 	CedulaTipo   *string `json:"cedula_tipo"`
 	CedulaNumero *string `json:"cedula_numero"`
@@ -98,6 +116,8 @@ type Atleta struct {
 	ParroquiaID          *int64   `json:"parroquia_id"`
 	DireccionDetalle     *string `json:"direccion_detalle"`
 	EscuelaID            *int64  `json:"escuela_id"`
+	MaestroID            *int64  `json:"maestro_id"`
+	TipoSangre           *string `json:"tipo_sangre"`
 	FechaInscripcion     string  `json:"fecha_inscripcion"`
 	InscripcionDiaExacto bool    `json:"inscripcion_dia_exacto"`
 
@@ -105,6 +125,7 @@ type Atleta struct {
 	Edad          int     `json:"edad"`
 	EsMenor       bool    `json:"es_menor"`
 	EscuelaNombre string  `json:"escuela_nombre,omitempty"`
+	MaestroNombre string  `json:"maestro_nombre,omitempty"`
 	EstadoNom     string  `json:"estado_nombre,omitempty"`
 	CiudadNom     string  `json:"ciudad_nombre,omitempty"`
 	MunicipioNom  string  `json:"municipio_nombre,omitempty"`
