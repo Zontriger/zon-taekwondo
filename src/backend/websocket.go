@@ -21,10 +21,16 @@ type Evento struct {
 	TS      int64  `json:"ts"`                // epoch ms
 }
 
-// Hub mantiene el conjunto de clientes WS y difunde eventos a todos.
+// Hub mantiene el conjunto de clientes WS y difunde eventos a todos. También
+// detecta cuándo se cierra el navegador (todos los clientes se desconectan y no
+// vuelven) para poder apagar el servidor automáticamente.
 type Hub struct {
-	mu      sync.RWMutex
-	clients map[*client]struct{}
+	mu            sync.RWMutex
+	clients       map[*client]struct{}
+	everConnected bool         // hubo al menos un cliente
+	idleTimer     *time.Timer  // cuenta regresiva de apagado cuando no queda nadie
+	idleGrace     time.Duration
+	onIdle        func()
 }
 
 type client struct {
@@ -33,7 +39,17 @@ type client struct {
 }
 
 func NewHub() *Hub {
-	return &Hub{clients: make(map[*client]struct{})}
+	// La gracia debe superar el reintento de reconexión del frontend (3s) para
+	// no apagar el servidor ante una simple recarga de la página.
+	return &Hub{clients: make(map[*client]struct{}), idleGrace: 8 * time.Second}
+}
+
+// SetOnIdle registra la acción a ejecutar cuando, tras haber tenido clientes,
+// todos se desconectan y no regresan dentro de idleGrace (navegador cerrado).
+func (h *Hub) SetOnIdle(fn func()) {
+	h.mu.Lock()
+	h.onIdle = fn
+	h.mu.Unlock()
 }
 
 // Broadcast encola un evento para todos los clientes conectados.
@@ -52,6 +68,11 @@ func (h *Hub) Broadcast(ev Evento) {
 func (h *Hub) add(c *client) {
 	h.mu.Lock()
 	h.clients[c] = struct{}{}
+	h.everConnected = true
+	if h.idleTimer != nil { // llegó un cliente: cancelar apagado pendiente
+		h.idleTimer.Stop()
+		h.idleTimer = nil
+	}
 	h.mu.Unlock()
 }
 
@@ -60,6 +81,21 @@ func (h *Hub) remove(c *client) {
 	if _, ok := h.clients[c]; ok {
 		delete(h.clients, c)
 		close(c.send)
+	}
+	// Si no queda nadie (y hubo alguien) arrancar la cuenta regresiva de apagado.
+	if len(h.clients) == 0 && h.everConnected && h.onIdle != nil {
+		if h.idleTimer != nil {
+			h.idleTimer.Stop()
+		}
+		fn := h.onIdle
+		h.idleTimer = time.AfterFunc(h.idleGrace, func() {
+			h.mu.RLock()
+			vacio := len(h.clients) == 0
+			h.mu.RUnlock()
+			if vacio {
+				fn()
+			}
+		})
 	}
 	h.mu.Unlock()
 }

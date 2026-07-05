@@ -34,6 +34,7 @@ src/cookies.txt
 
 # Logs y archivos temporales
 *.log
+log/
 tmp/
 temp/
 *.tmp

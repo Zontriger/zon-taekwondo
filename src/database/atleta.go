@@ -29,8 +29,9 @@ type AtletaInput struct {
 	InscripcionDiaExacto bool           `json:"inscripcion_dia_exacto"`
 	Representante        *Representante `json:"representante"`
 	// Cinturón inicial (solo en creación).
-	CinturonID *int64 `json:"cinturon_id"`
-	Dan        *int   `json:"dan"`
+	CinturonID    *int64  `json:"cinturon_id"`
+	Dan           *int    `json:"dan"`
+	CinturonFecha *string `json:"cinturon_fecha"` // fecha de asignación; si vacía se usa la de inscripción
 }
 
 // CreateAtleta inserta el atleta y sus registros iniciales de forma atómica:
@@ -67,10 +68,14 @@ func CreateAtleta(db *sql.DB, in AtletaInput, entrenadorID int64) (int64, error)
 	}
 
 	if in.CinturonID != nil {
+		fechaCint := in.FechaInscripcion
+		if in.CinturonFecha != nil && strings.TrimSpace(*in.CinturonFecha) != "" {
+			fechaCint = strings.TrimSpace(*in.CinturonFecha)
+		}
 		_, err = tx.Exec(`
 			INSERT INTO historial_cinturon (atleta_id, cinturon_id, dan, fecha_cambio, registrado_por)
 			VALUES (?,?,?,?,?)`,
-			id, *in.CinturonID, in.Dan, in.FechaInscripcion, nullID(entrenadorID))
+			id, *in.CinturonID, in.Dan, fechaCint, nullID(entrenadorID))
 		if err != nil {
 			return 0, err
 		}

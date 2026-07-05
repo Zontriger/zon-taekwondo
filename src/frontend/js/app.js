@@ -41,6 +41,8 @@ const TABLA_LABEL = {
   parroquia: 'Parroquias', cinturon: 'Cinturones', entrenador: 'Usuarios del sistema',
 };
 const TABLAS_RESPALDO = Object.keys(TABLA_LABEL);
+// Etiqueta singular para el título del modal de datos maestros.
+const MAESTRO_SINGULAR = { estados: 'estado', ciudades: 'ciudad', municipios: 'municipio', parroquias: 'parroquia', cinturones: 'cinturón' };
 
 const svg = (p) => `<svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
 const ICON = {
@@ -54,6 +56,7 @@ const ICON = {
   arrow:     svg('<line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/>'),
   x:         svg('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>'),
   pdf:       svg('<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>'),
+  download:  svg('<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>'),
 };
 const STATE_DOT = '<svg class="ico-dot" viewBox="0 0 8 8"><circle cx="4" cy="4" r="4" fill="currentColor"/></svg>';
 
@@ -73,18 +76,40 @@ async function api(path, opts = {}) {
 }
 
 /* ---------------------- Toast ---------------------- */
-let toastTimer;
+let toastTimer, toastHideT;
 function toast(msg, kind = 'ok') {
   const t = $('#toast');
-  t.textContent = msg;
+  clearTimeout(toastTimer); clearTimeout(toastHideT);
   t.className = 'toast ' + kind;
+  t.innerHTML = `<span class="toast-msg"></span><button type="button" class="toast-x" aria-label="Cerrar">${ICON.x}</button>`;
+  t.querySelector('.toast-msg').textContent = msg;
+  t.querySelector('.toast-x').onclick = ocultarToast;
+  t.classList.remove('hidden');
+  void t.offsetWidth;            // reflow: anima desde el estado oculto
+  t.classList.add('show');
+  toastTimer = setTimeout(ocultarToast, 3400);
+}
+function ocultarToast() {
+  const t = $('#toast');
   clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => t.classList.add('hidden'), 3400);
+  t.classList.remove('show');
+  toastHideT = setTimeout(() => t.classList.add('hidden'), 220);
 }
 
 /* ---------------------- Modales base ---------------------- */
-function abrir(m) { m.classList.remove('hidden'); }
-function cerrar(m) { m.classList.add('hidden'); }
+// abrir/cerrar animan la opacidad: al cerrar se espera la transición antes de
+// ocultar (display:none) para evitar el "flashazo" al encadenar modales.
+function abrir(m) {
+  clearTimeout(m._closeT);
+  m.classList.remove('hidden');
+  void m.offsetWidth;           // reflow para animar desde opacity:0
+  m.classList.add('show');
+}
+function cerrar(m) {
+  clearTimeout(m._closeT);
+  m.classList.remove('show');
+  m._closeT = setTimeout(() => m.classList.add('hidden'), 180);
+}
 
 // confirmar: modal de confirmación propio (reemplaza confirm()).
 let confirmResolve = null;
@@ -229,6 +254,13 @@ function llenarSelect(sel, items, placeholder, label) {
   sel.innerHTML = `<option value="">${placeholder}</option>` + (items || []).map(i => `<option value="${i.id}">${esc(label(i))}</option>`).join('');
 }
 function cinturonPorId(id) { return state.cat.cinturones.find(c => c.id == id); }
+// ID del cinturón Blanco (por defecto en atletas nuevos); si no existe, el de menor orden.
+function cinturonBlancoId() {
+  const cs = state.cat.cinturones || [];
+  const blanco = cs.find(c => /blanco/i.test(c.color));
+  const first = [...cs].sort((a, b) => (a.orden ?? 0) - (b.orden ?? 0))[0];
+  return String((blanco || first || {}).id || '');
+}
 function porId(arr, id) { return (arr || []).find(x => String(x.id) === String(id)); }
 function nombreGeo(kind, id) { const o = porId(state.geo[kind], id); return o ? o.nombre : '—'; }
 
@@ -374,26 +406,44 @@ function bindFiltros() {
   $('#f-texto').addEventListener('input', () => { clearTimeout(debounceTxt); debounceTxt = setTimeout(() => { state.filtro.q = $('#f-texto').value.trim(); applyFiltro(); }, 300); });
   const facetMap = { 'f-escuela': 'escuela', 'f-municipio': 'municipio', 'f-cinturon': 'cinturon', 'f-estado': 'estado_actividad' };
   Object.entries(facetMap).forEach(([id, field]) => $('#' + id).addEventListener('change', (e) => setFacet(field, e.target.value)));
-  $('#f-fdesde').addEventListener('change', () => setDateCond('fecha_registro', 'gte', $('#f-fdesde').value));
-  $('#f-fhasta').addEventListener('change', () => setDateCond('fecha_registro', 'lte', $('#f-fhasta').value));
+  $('#f-fdesde').addEventListener('change', onFechaDesde);
+  $('#f-fhasta').addEventListener('change', onFechaHasta);
   $('#btn-avanzado').addEventListener('click', () => { $('#adv-panel').classList.toggle('hidden'); $('#btn-avanzado').classList.toggle('active', !$('#adv-panel').classList.contains('hidden')); });
   $('#adv-match').addEventListener('change', (e) => { state.filtro.match = e.target.value; applyFiltro(); });
   $('#adv-add').addEventListener('click', addCondition);
   $('#adv-clear').addEventListener('click', clearFilters);
-  $('#btn-pdf-filtros').addEventListener('click', () => window.open('/api/reportes/atletas.pdf?' + filtroParams().toString(), '_blank'));
-  $('#btn-pdf-todos').addEventListener('click', () => window.open('/api/reportes/atletas.pdf', '_blank'));
+  $('#btn-limpiar-filtros').addEventListener('click', clearFilters);
+  $('#btn-pdf-filtros').addEventListener('click', () => descargar('/api/reportes/atletas.pdf?' + filtroParams().toString()));
+  $('#btn-pdf-todos').addEventListener('click', () => descargar('/api/reportes/atletas.pdf'));
 }
 function fieldSpecByKey(key) { return state.cat.campos_filtro.find(f => f.key === key); }
 function needsValue(op) { return op !== 'set' && op !== 'unset'; }
 function filtroActivo() { return state.filtro.q !== '' || state.filtro.cond.length > 0; }
 function setFacet(field, value) { state.filtro.cond = state.filtro.cond.filter(c => c.field !== field); if (value !== '') state.filtro.cond.push({ field, op: 'eq', value }); renderAdvRows(); applyFiltro(); }
 function setDateCond(field, op, value) { state.filtro.cond = state.filtro.cond.filter(c => !(c.field === field && c.op === op)); if (value) state.filtro.cond.push({ field, op, value }); renderAdvRows(); applyFiltro(); }
+// Rango de fechas "Registrado desde/hasta" con restricción mutua: hasta no puede
+// ser anterior a desde, ni desde posterior a hasta (mismo día permitido). Se
+// ajustan los atributos min/max y, si un valor ya establecido queda fuera de
+// rango, se corrige para evitar un rango inválido.
+function onFechaDesde() {
+  const d = $('#f-fdesde'), h = $('#f-fhasta');
+  if (d.value) h.min = d.value; else h.removeAttribute('min');
+  if (d.value && h.value && h.value < d.value) { h.value = d.value; setDateCond('fecha_registro', 'lte', h.value); }
+  setDateCond('fecha_registro', 'gte', d.value);
+}
+function onFechaHasta() {
+  const d = $('#f-fdesde'), h = $('#f-fhasta');
+  if (h.value) d.max = h.value; else d.removeAttribute('max');
+  if (h.value && d.value && d.value > h.value) { d.value = h.value; setDateCond('fecha_registro', 'gte', d.value); }
+  setDateCond('fecha_registro', 'lte', h.value);
+}
 function syncFacetsFromCond() {
   const map = { escuela: '#f-escuela', municipio: '#f-municipio', cinturon: '#f-cinturon', estado_actividad: '#f-estado' };
   Object.entries(map).forEach(([field, sel]) => { const c = state.filtro.cond.find(x => x.field === field && x.op === 'eq'); $(sel).value = c ? c.value : ''; });
 }
 function addCondition() { const campos = state.cat.campos_filtro; if (!campos.length) return; state.filtro.cond.push({ field: campos[0].key, op: campos[0].ops[0].op, value: '' }); renderAdvRows(); }
-function clearFilters() { state.filtro.cond = []; $('#f-fdesde').value = ''; $('#f-fhasta').value = ''; renderAdvRows(); syncFacetsFromCond(); applyFiltro(); }
+function clearFilters() { state.filtro.q = ''; $('#f-texto').value = ''; state.filtro.cond = []; $('#f-fdesde').value = ''; $('#f-fhasta').value = ''; $('#f-fdesde').removeAttribute('max'); $('#f-fhasta').removeAttribute('min'); renderAdvRows(); syncFacetsFromCond(); applyFiltro(); }
+function actualizarBotonLimpiar() { $('#btn-limpiar-filtros').classList.toggle('hidden', !filtroActivo()); }
 function optionList(opts, selected) { return opts.map(o => `<option value="${esc(o.id)}" ${String(o.id) === String(selected) ? 'selected' : ''}>${esc(o.label)}</option>`).join(''); }
 function advValHTML(c) {
   const spec = fieldSpecByKey(c.field);
@@ -434,6 +484,7 @@ function filtroParams() { const p = new URLSearchParams(); if (state.filtro.q) p
 
 /* ---------------------- Listado de atletas ---------------------- */
 async function cargarLista() {
+  actualizarBotonLimpiar();
   const p = filtroParams();
   p.set('limit', state.pageSize); p.set('offset', state.offset);
   let data;
@@ -536,6 +587,9 @@ function abrirForm(atleta) {
     escribirFecha('a-ins', hoy(), false);
     $('#a-ins-nodia').checked = false;
     setParentesco('');
+    // Cinturón inicial: Blanco y fecha de asignación de hoy por defecto.
+    $('#a-cinturon').value = cinturonBlancoId();
+    $('#a-cinturon-fecha').value = hoy();
   }
   toggleDiaInscripcion(); actualizarContactoAdd(); actualizarEdadHint(); actualizarDanWrap(); validarForm();
   abrir(modalAtleta);
@@ -562,7 +616,9 @@ function escribirFecha(pfx, iso, sinDia) {
 }
 function readNac() { const v = tripletVals('a-nac'); return fechaISO(v.dia, v.mes, v.anio); }
 function readIns() { const v = tripletVals('a-ins'); const dia = $('#a-ins-nodia').checked ? '1' : v.dia; return fechaISO(dia, v.mes, v.anio); }
-function toggleDiaInscripcion() { const s = $('#a-ins-nodia').checked; $('#a-ins-dia').classList.toggle('hidden', s); if (s) $('#a-ins-dia').value = ''; }
+// Solo oculta el input Día (readIns/motivoFecha ya lo ignoran cuando está
+// marcado). No se borra el valor para que al desmarcar reaparezca el mismo día.
+function toggleDiaInscripcion() { $('#a-ins-dia').classList.toggle('hidden', $('#a-ins-nodia').checked); }
 
 function agregarContacto(value = '') {
   if ($$('#a-contactos .contacto-row').length >= 3) return;
@@ -613,7 +669,12 @@ function actualizarEdadHint() {
   hint.style.color = menor ? 'var(--orange)' : 'var(--cyan)';
   $('.req-menor').style.display = menor ? 'inline' : 'none';
 }
-function actualizarDanWrap() { const c = cinturonPorId($('#a-cinturon').value); const negro = c && c.es_negro; $('#dan-wrap').classList.toggle('hidden', !negro); if (!negro) $('#a-dan').value = ''; }
+function actualizarDanWrap() {
+  const c = cinturonPorId($('#a-cinturon').value); const negro = c && c.es_negro;
+  $('#dan-wrap').classList.toggle('hidden', !negro);
+  if (!negro) $('#a-dan').value = '';
+  else if (!$('#a-dan').value) $('#a-dan').value = '1';   // DAN 1 por defecto
+}
 
 function markErr(sel) { const el = $(sel); if (el) el.classList.add('field-err'); }
 function limpiarErrores() { $$('#form-atleta .field-err').forEach(el => el.classList.remove('field-err')); }
@@ -697,7 +758,11 @@ $('#form-atleta').addEventListener('submit', async (e) => {
   };
   if (state.editId === null && !$('#fs-cinturon').classList.contains('hidden')) {
     const cid = intOrNull('#a-cinturon');
-    if (cid) { payload.cinturon_id = cid; const d = $('#a-dan').value; payload.dan = d ? parseInt(d, 10) : null; }
+    if (cid) {
+      payload.cinturon_id = cid;
+      const d = $('#a-dan').value; payload.dan = d ? parseInt(d, 10) : null;
+      payload.cinturon_fecha = $('#a-cinturon-fecha').value || null;
+    }
   }
   try {
     if (state.editId === null) { await api('/api/atletas', { method: 'POST', body: JSON.stringify(payload) }); toast('Atleta registrado'); }
@@ -725,8 +790,9 @@ async function verDetalle(id) {
   $('#det-body').innerHTML = `
     <div class="det-head">
       <div class="det-avatar"><img src="/logo.png" width="42" height="42" alt=""></div>
-      <div><h3 style="margin:0">${esc(a.apellidos)}, ${esc(a.nombres)}</h3>
+      <div class="det-head-info"><h3 style="margin:0">${esc(a.apellidos)}, ${esc(a.nombres)}</h3>
         <div>${chipCinturon(a.cinturon_color, a.cinturon_dan)} <span class="chip state-${a.estado}">${STATE_DOT} ${a.estado}</span></div></div>
+      <button class="btn btn-sm det-ficha-btn" id="d-ficha">${ICON.download}<span>Ficha del atleta (PDF)</span></button>
     </div>
     <div class="det-grid">
       ${kv('Cédula', cedulaFmt(a.cedula_tipo, a.cedula_numero))}
@@ -753,16 +819,13 @@ async function verDetalle(id) {
     <fieldset><legend>Periodos de actividad</legend>
       <ul class="timeline">${(a.periodos || []).map(p => `<li><b>${p.fecha_inicio}</b> <span class="arrow-sep">${ICON.arrow}</span> ${p.fecha_fin ? esc(p.fecha_fin) : '<span class="state-activo">activo</span>'} ${p.motivo_retiro ? `<small>(${esc(p.motivo_retiro)})</small>` : ''}</li>`).join('')}</ul>
     </fieldset>
-    <div class="det-actions">
-      <button class="btn btn-sm" id="d-ficha">${ICON.pdf}<span>Ficha técnica (PDF)</span></button>
-    </div>
     ${isAdmin() ? `<div class="det-actions">
       <button class="btn btn-sm" id="d-editar">${ICON.edit}<span>Editar</span></button>
       <button class="btn btn-sm" id="d-cinturon">${ICON.belt}<span>Cambiar cinturón</span></button>
       ${a.estado === 'activo' ? `<button class="btn btn-sm" id="d-retirar">${ICON.retire}<span>Retirar</span></button>` : `<button class="btn btn-sm" id="d-reactivar">${ICON.reactivate}<span>Reactivar</span></button>`}
       <button class="btn btn-sm btn-danger" id="d-eliminar">${ICON.trash}<span>Eliminar</span></button>
     </div>` : ''}`;
-  $('#d-ficha').onclick = () => window.open('/api/atletas/' + a.id + '/ficha.pdf', '_blank');
+  $('#d-ficha').onclick = () => descargar('/api/atletas/' + a.id + '/ficha.pdf');
   if (isAdmin()) {
     $('#d-editar').onclick = () => { retornoFicha = a.id; cerrar(modalDetalle); abrirForm(a); };
     $('#d-cinturon').onclick = () => cambiarCinturon(a);
@@ -1044,7 +1107,7 @@ function abrirMaestro(x) {
   $('#form-maestro').reset();
   $('#mst-error').textContent = '';
   $('#mst-id').value = x ? x.id : '';
-  $('#mst-title').textContent = (x ? 'Editar ' : 'Nuevo ') + tipo.slice(0, -1);
+  $('#mst-title').textContent = (x ? 'Editar ' : 'Nuevo ') + (MAESTRO_SINGULAR[tipo] || tipo);
   const show = (sel, on) => $(sel).classList.toggle('hidden', !on);
   show('#mst-estado-wrap', ['ciudades', 'municipios', 'parroquias'].includes(tipo));
   show('#mst-ciudad-wrap', ['municipios', 'parroquias'].includes(tipo));
@@ -1098,8 +1161,8 @@ function initRespaldo() {
   const opts = TABLAS_RESPALDO.map(t => `<option value="${t}">${esc(TABLA_LABEL[t] || t)}</option>`).join('');
   $('#exp-tabla').innerHTML = opts; $('#imp-tabla').innerHTML = opts;
 }
-$('#btn-dl-db').addEventListener('click', () => window.open('/api/backup/db', '_blank'));
-$('#btn-exp').addEventListener('click', () => window.open('/api/backup/tabla/' + $('#exp-tabla').value + '.csv', '_blank'));
+$('#btn-dl-db').addEventListener('click', () => descargar('/api/backup/db'));
+$('#btn-exp').addEventListener('click', () => descargar('/api/backup/tabla/' + $('#exp-tabla').value + '.csv'));
 $('#btn-imp').addEventListener('click', async () => {
   const tabla = $('#imp-tabla').value;
   const file = $('#imp-file').files[0];
@@ -1175,8 +1238,8 @@ function conectarWS() {
 }
 
 /* ---------------------- Utilidades ---------------------- */
-$$('[data-close]').forEach(b => b.addEventListener('click', () => b.closest('.modal-backdrop').classList.add('hidden')));
-$$('.modal-backdrop').forEach(m => m.addEventListener('mousedown', (e) => { if (e.target === m && m.id !== 'modal-confirm' && m.id !== 'modal-prompt') m.classList.add('hidden'); }));
+$$('[data-close]').forEach(b => b.addEventListener('click', () => cerrar(b.closest('.modal-backdrop'))));
+$$('.modal-backdrop').forEach(m => m.addEventListener('mousedown', (e) => { if (e.target === m && m.id !== 'modal-confirm' && m.id !== 'modal-prompt') cerrar(m); }));
 
 function limitInput(el, { allow, max, maxLen } = {}) {
   el.addEventListener('input', () => {
@@ -1191,6 +1254,14 @@ function val(s) { return $(s).value.trim(); }
 function valOrNull(s) { const v = $(s).value.trim(); return v === '' ? null : v; }
 function intOrNull(s) { const v = $(s).value; return v ? parseInt(v, 10) : null; }
 function hoy() { return new Date().toISOString().slice(0, 10); }
+// descargar: baja un archivo (PDF/DB/CSV) en la misma pestaña, sin abrir otra.
+// El servidor envía Content-Disposition: attachment, así que el navegador lo
+// guarda sin navegar fuera de la app.
+function descargar(url) {
+  const a = document.createElement('a');
+  a.href = url; a.download = '';
+  document.body.appendChild(a); a.click(); a.remove();
+}
 function soloMesAnio(f) { return f ? f.slice(0, 7) : f; }
 function pad2(n) { return String(n).padStart(2, '0'); }
 function kv(k, v) { return `<div><div class="k">${k}</div>${esc(String(v))}</div>`; }

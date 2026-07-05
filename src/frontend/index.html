@@ -75,6 +75,10 @@
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <span>Respaldo</span>
         </a>
+        <a class="nav-item" data-route="ayuda">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+          <span>Ayuda</span>
+        </a>
         <div class="sidebar-spacer"></div>
         <a class="nav-item nav-logout" id="btn-logout">
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
@@ -111,6 +115,10 @@
             <div class="toolbar-row report-row">
               <label class="inline-field">Registrado desde<input type="date" id="f-fdesde" /></label>
               <label class="inline-field">hasta<input type="date" id="f-fhasta" /></label>
+              <button id="btn-limpiar-filtros" class="btn btn-ghost btn-sm hidden" title="Quitar todos los filtros">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                <span>Limpiar filtros</span>
+              </button>
               <span class="grow"></span>
               <button id="btn-pdf-filtros" class="btn btn-ghost btn-sm" title="PDF de los atletas que cumplen los filtros actuales">
                 <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
@@ -228,6 +236,82 @@
             <p id="imp-msg" class="muted-p"></p>
           </div>
         </section>
+
+        <!-- ===================== SECCIÓN AYUDA ===================== -->
+        <section id="sec-ayuda" class="route-sec hidden">
+          <h2 class="sec-title">Ayuda del sistema</h2>
+
+          <div class="card help-card">
+            <h3>¿Qué es SIGAT?</h3>
+            <p class="muted-p"><b>SIGAT</b> (Sistema de Gestión de Atletas de Taekwondo) es el sistema de registro y
+              seguimiento de los atletas de la Asociación de Taekwondo del Estado Miranda. Permite llevar la ficha completa
+              de cada atleta (datos personales, escuela, entrenador, cinturón, periodos de actividad y representante),
+              generar reportes en PDF y respaldar toda la información.</p>
+            <p class="muted-p">Desarrollado por el <b>Ingeniero de Sistemas Ricardo Pacheco</b>.</p>
+          </div>
+
+          <div class="card help-card">
+            <h3>¿Cómo está hecho?</h3>
+            <p class="muted-p">Es una aplicación <b>ultra-portátil</b>: un único ejecutable (<code>app.exe</code>) que
+              no requiere instaladores, ni servidores externos, ni conexión a internet. Al abrirlo levanta un pequeño
+              servidor local y abre el navegador en <code>http://localhost:8080</code>.</p>
+            <ul class="help-list">
+              <li><b>Backend:</b> Go (un solo binario nativo, sin dependencias externas).</li>
+              <li><b>Base de datos:</b> SQLite en el archivo <code>app.db</code> (se crea solo junto al ejecutable).</li>
+              <li><b>Interfaz:</b> HTML, CSS y JavaScript embebidos dentro del propio ejecutable.</li>
+              <li><b>Tiempo real:</b> WebSockets — los cambios de un usuario se reflejan al instante en los demás.
+                El punto junto al título <b>SIGAT</b> indica la conexión en vivo (amarillo = conectado).</li>
+            </ul>
+          </div>
+
+          <div class="card help-card">
+            <h3>Roles y acceso</h3>
+            <ul class="help-list">
+              <li><b>Administrador:</b> acceso total — crear, editar y eliminar atletas, gestionar escuelas, entrenadores,
+                usuarios, datos maestros y respaldos.</li>
+              <li><b>Consultor:</b> solo lectura — puede buscar, consultar fichas y generar PDF, pero no modifica datos.</li>
+            </ul>
+            <p class="muted-p">Cada usuario puede cambiar su nombre de usuario y contraseña desde <b>Mi cuenta</b> (arriba a la derecha).</p>
+          </div>
+
+          <div class="card help-card">
+            <h3>Respaldo y restauración</h3>
+            <p class="muted-p">Toda la información vive en el archivo <code>app.db</code>, ubicado en la misma carpeta que el
+              ejecutable. Cuando se suban fotos o documentos de atletas, estos se guardarán en una carpeta <code>data/</code>
+              junto al ejecutable.</p>
+            <p class="help-step"><b>Para hacer un respaldo completo:</b></p>
+            <ol class="help-list">
+              <li>Vaya a <b>Respaldo → Descargar base de datos</b> para obtener una copia de <code>app.db</code>.</li>
+              <li>Copie también la carpeta <code>data/</code> (si existe) para conservar fotos y documentos.</li>
+              <li>Guarde ambos en un lugar seguro (pendrive, disco externo, nube).</li>
+            </ol>
+            <p class="help-step"><b>Para restaurar en otra máquina o recuperar datos:</b></p>
+            <ol class="help-list">
+              <li>Cierre el sistema (cierre la ventana del servidor).</li>
+              <li>Reemplace el archivo <code>app.db</code> por su respaldo, y la carpeta <code>data/</code> si la tiene.</li>
+              <li>Vuelva a abrir <code>app.exe</code>: la información restaurada aparecerá tal cual.</li>
+            </ol>
+            <p class="muted-p">También puede exportar o importar tablas individuales en formato <b>CSV</b> (por ejemplo,
+              solo las escuelas). <b>Ojo:</b> importar un CSV <b>reemplaza por completo</b> el contenido de esa tabla.</p>
+          </div>
+
+          <div class="card help-card">
+            <h3>Búsqueda y filtro avanzado</h3>
+            <p class="muted-p">La barra de búsqueda encuentra por nombre, apellido o cédula. Los selectores de abajo
+              filtran por escuela, municipio, cinturón y estado (activo/retirado). Para condiciones más precisas use
+              <b>Filtro avanzado</b>, que combina varias condiciones tipo <i>campo → operador → valor</i>.</p>
+            <p class="help-step"><b>Coincidir «todas»</b> exige que se cumplan <i>todas</i> las condiciones;
+              <b>«cualquiera»</b> basta con que se cumpla <i>una</i>.</p>
+            <p class="help-step"><b>Ejemplos:</b></p>
+            <ul class="help-list">
+              <li>Atletas <b>activos</b> de cinturón <b>Negro</b>: coincidir <i>todas</i> → «Estado = activo» y «Cinturón = Negro».</li>
+              <li>Menores inscritos <b>este año</b>: coincidir <i>todas</i> → «Edad &lt; 18» y «Fecha de inscripción ≥ 2026-01-01».</li>
+              <li>Atletas de la escuela <b>A</b> <b>o</b> la escuela <b>B</b>: coincidir <i>cualquiera</i> → «Escuela = A» y «Escuela = B».</li>
+            </ul>
+            <p class="muted-p">Con los filtros aplicados puede generar un <b>PDF (con filtros)</b> que incluye solo los
+              atletas que coinciden, más un resumen agregado.</p>
+          </div>
+        </section>
       </main>
     </div>
   </div>
@@ -319,6 +403,7 @@
           <legend>Cinturón inicial</legend>
           <div class="grid2">
             <label>Cinturón<select id="a-cinturon"><option value="">No aplica</option></select></label>
+            <label>Fecha de asignación<input type="date" id="a-cinturon-fecha" /></label>
             <label id="dan-wrap" class="hidden">DAN (1–9)<input id="a-dan" inputmode="numeric" maxlength="1" /></label>
           </div>
         </fieldset>
@@ -511,7 +596,7 @@
         <label id="mst-nombre-wrap">Nombre *<input id="mst-nombre" maxlength="80" /></label>
         <div id="mst-cinturon-extra" class="grid2 hidden">
           <label>Orden<input id="mst-orden" inputmode="numeric" maxlength="3" /></label>
-          <label class="check-inline"><input type="checkbox" id="mst-esnegro" /><span>Habilita DAN (negro)</span></label>
+          <label class="check-inline"><input type="checkbox" id="mst-esnegro" /><span>Habilita DAN</span></label>
         </div>
         <p id="mst-error" class="form-error"></p>
         <div class="modal-foot">
