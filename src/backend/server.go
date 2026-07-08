@@ -4,9 +4,11 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io/fs"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 )
@@ -45,6 +47,9 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("/api/catalogos", s.requireAuth(s.handleCatalogos))
 	mux.HandleFunc("/api/geo", s.requireAuth(s.handleGeo))
 
+	// --- Configuración del sistema (GET todos; PUT solo admin) ---
+	mux.HandleFunc("/api/config", s.requireAuth(s.handleConfig))
+
 	// --- Atletas ---
 	mux.HandleFunc("/api/atletas", s.requireAuth(s.handleAtletas))     // GET lista, POST crea
 	mux.HandleFunc("/api/atletas/", s.requireAuth(s.handleAtletaItem)) // /{id} y subrutas
@@ -62,6 +67,7 @@ func (s *Server) Handler() http.Handler {
 
 	// --- Reportes PDF ---
 	mux.HandleFunc("/api/reportes/atletas.pdf", s.requireAuth(s.handleReporteAtletas))
+	mux.HandleFunc("/api/reportes/planilla-blanco.pdf", s.requireAuth(s.handlePlanillaBlanco))
 
 	// --- Respaldo import/export (solo admin, verificado en el handler) ---
 	mux.HandleFunc("/api/backup/", s.requireAuth(s.handleBackup))
@@ -136,6 +142,36 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 
 func writeErr(w http.ResponseWriter, status int, msg string) {
 	writeJSON(w, status, map[string]string{"error": msg})
+}
+
+// setDisposition fija Content-Disposition con un nombre ASCII de respaldo y el
+// nombre real en UTF-8 (RFC 5987), de modo que tildes y ñ se conserven en la
+// descarga (p. ej. "planilla-peña_alejandro.pdf").
+func setDisposition(w http.ResponseWriter, disp, filename string) {
+	w.Header().Set("Content-Disposition",
+		fmt.Sprintf(`%s; filename="%s"; filename*=UTF-8''%s`, disp, translitASCII(filename), url.PathEscape(filename)))
+}
+
+func setAttachment(w http.ResponseWriter, filename string) { setDisposition(w, "attachment", filename) }
+
+// translitASCII produce una versión solo-ASCII (tildes/ñ → letra base) para el
+// nombre de archivo de respaldo que exige la cabecera HTTP.
+func translitASCII(s string) string {
+	rep := map[rune]string{
+		'á': "a", 'é': "e", 'í': "i", 'ó': "o", 'ú': "u", 'ü': "u", 'ñ': "n",
+		'Á': "A", 'É': "E", 'Í': "I", 'Ó': "O", 'Ú': "U", 'Ü': "U", 'Ñ': "N",
+	}
+	var b strings.Builder
+	for _, r := range s {
+		if v, ok := rep[r]; ok {
+			b.WriteString(v)
+		} else if r < 128 {
+			b.WriteRune(r)
+		} else {
+			b.WriteRune('_')
+		}
+	}
+	return b.String()
 }
 
 // decode lee el cuerpo JSON de la petición en dst.

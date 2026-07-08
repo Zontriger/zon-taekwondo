@@ -72,12 +72,15 @@ type Maestro struct {
 }
 
 type Representante struct {
-	CedulaTipo   *string `json:"cedula_tipo"`
-	CedulaNumero *string `json:"cedula_numero"`
-	Nombres      *string `json:"nombres"`
-	Apellidos    *string `json:"apellidos"`
-	Telefono     *string `json:"telefono"`
-	Parentesco   *string `json:"parentesco"`
+	CedulaTipo       *string `json:"cedula_tipo"`
+	CedulaNumero     *string `json:"cedula_numero"`
+	Nombres          *string `json:"nombres"`
+	Apellidos        *string `json:"apellidos"`
+	Telefono         *string `json:"telefono"`
+	Parentesco       *string `json:"parentesco"`
+	LugarTrabajo     *string `json:"lugar_trabajo"`
+	DireccionTrabajo *string `json:"direccion_trabajo"`
+	Email            *string `json:"email"`
 }
 
 // HistorialCinturon es una fila de la línea de tiempo de grados.
@@ -121,6 +124,26 @@ type Atleta struct {
 	FechaInscripcion     string  `json:"fecha_inscripcion"`
 	InscripcionDiaExacto bool    `json:"inscripcion_dia_exacto"`
 
+	// Campos del formato oficial "Planilla del Atleta".
+	Horario            *string `json:"horario"`
+	Sexo               *string `json:"sexo"` // 'M' | 'F'
+	Email              *string `json:"email"`
+	Estatura           *string `json:"estatura"`
+	Peso               *string `json:"peso"`
+	IMC                *string `json:"imc"`
+	FC                 *string `json:"fc"`
+	TallaCamisa        *string `json:"talla_camisa"`
+	TallaPantalon      *string `json:"talla_pantalon"`
+	Instituto          *string `json:"instituto"`
+	InstitutoDireccion *string `json:"instituto_direccion"`
+	MedEnfermedad      *bool   `json:"med_enfermedad"`
+	MedEnfermedadDet   *string `json:"med_enfermedad_detalle"`
+	MedAlergia         *bool   `json:"med_alergia"`
+	MedAlergiaDet      *string `json:"med_alergia_detalle"`
+	MedOperado         *bool   `json:"med_operado"`
+	MedOperadoDet      *string `json:"med_operado_detalle"`
+	MedEmergencia      *string `json:"med_emergencia"`
+
 	// Derivados / enriquecidos para la UI.
 	Edad          int     `json:"edad"`
 	EsMenor       bool    `json:"es_menor"`
@@ -158,6 +181,7 @@ type Dominio struct {
 type AtletaFiltro struct {
 	Texto   string   // búsqueda rápida (nombre, apellido o cédula)
 	Dominio *Dominio // filtro avanzado (opcional)
+	IDs     []int64  // restringe a un conjunto de ids (para acciones en lote)
 	Limit   int
 	Offset  int
 }

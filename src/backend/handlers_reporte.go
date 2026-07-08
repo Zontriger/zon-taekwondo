@@ -1,20 +1,73 @@
 package backend
 
 import (
-	"database/sql"
+	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
+	"image"
+	"image/color"
+	"image/draw"
+	"image/png"
+	"io/fs"
 	"net/http"
-	"os"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/go-pdf/fpdf"
 
 	"zon-taekwondo/database"
 )
+
+var (
+	logoAcademiaOnce sync.Once
+	logoAcademiaPNG  []byte // PNG normalizado para fpdf (nil si no está disponible)
+)
+
+// logoAcademiaBytes devuelve el logo de la academia normalizado a un PNG que el
+// parser de fpdf procesa de forma fiable: se decodifica el original y se re-
+// codifica aplanado sobre blanco (fpdf falla con ciertos PNG con transparencia o
+// chunks poco comunes). El resultado se cachea. Devuelve nil si no hay logo.
+func (s *Server) logoAcademiaBytes() []byte {
+	logoAcademiaOnce.Do(func() {
+		raw, err := fs.ReadFile(s.frontend, "logo_academia.png")
+		if err != nil {
+			return
+		}
+		img, err := png.Decode(bytes.NewReader(raw))
+		if err != nil {
+			return
+		}
+		b := img.Bounds()
+		rgba := image.NewRGBA(b)
+		draw.Draw(rgba, b, image.NewUniform(color.White), image.Point{}, draw.Src) // fondo blanco
+		draw.Draw(rgba, b, img, b.Min, draw.Over)                                   // logo encima
+		var buf bytes.Buffer
+		if err := png.Encode(&buf, rgba); err != nil {
+			return
+		}
+		logoAcademiaPNG = buf.Bytes()
+	})
+	return logoAcademiaPNG
+}
+
+// registrarLogoAcademia registra el logo bajo el nombre "logo_academia" y
+// devuelve true si quedó disponible como membrete. Protegido con recover: un
+// logo problemático nunca debe impedir la generación del PDF.
+func (s *Server) registrarLogoAcademia(pdf *fpdf.Fpdf) (ok bool) {
+	data := s.logoAcademiaBytes()
+	if data == nil {
+		return false
+	}
+	defer func() {
+		if r := recover(); r != nil {
+			ok = false
+		}
+	}()
+	pdf.RegisterImageOptionsReader("logo_academia", fpdf.ImageOptions{ImageType: "PNG"}, bytes.NewReader(data))
+	return pdf.Ok()
+}
 
 // GET /api/reportes/atletas.pdf?<mismos filtros que la lista>
 // Reutiliza el filtrado de la lista (q + domain) y genera un PDF con la tabla
@@ -29,6 +82,12 @@ func (s *Server) handleReporteAtletas(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		f.Dominio = &dom
+	}
+	// Acciones en lote: PDF solo de los atletas seleccionados (ids coma-separados).
+	if ids := q.Get("ids"); strings.TrimSpace(ids) != "" {
+		for id := range idsSeleccionados(ids) {
+			f.IDs = append(f.IDs, id)
+		}
 	}
 	items, total, err := database.ListAtletas(s.db, f)
 	if err != nil {
@@ -50,13 +109,22 @@ func (s *Server) handleReporteAtletas(w http.ResponseWriter, r *http.Request) {
 	})
 	pdf.AddPage()
 
-	// Encabezado
+	// Encabezado con membrete: logo de la academia a la izquierda.
+	conLogo := s.registrarLogoAcademia(pdf)
+	xTexto := 10.0
+	if conLogo {
+		pdf.ImageOptions("logo_academia", 10, 10, 18, 18, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
+		xTexto = 31
+	}
+	pdf.SetXY(xTexto, 11)
 	pdf.SetFont("Arial", "B", 16)
 	pdf.SetTextColor(0, 47, 108)
 	pdf.CellFormat(0, 9, tr("Taekwondo Miranda — Reporte de Atletas"), "", 1, "L", false, 0, "")
+	pdf.SetX(xTexto)
 	pdf.SetFont("Arial", "", 9)
 	pdf.SetTextColor(90, 90, 90)
 	pdf.CellFormat(0, 6, tr(fmt.Sprintf("Total de atletas: %d", total)), "", 1, "L", false, 0, "")
+	pdf.SetY(30)
 	pdf.Ln(2)
 
 	// Cabecera de tabla
@@ -93,7 +161,7 @@ func (s *Server) handleReporteAtletas(w http.ResponseWriter, r *http.Request) {
 			key = "(sin cinturón)"
 		}
 		if a.CinturonDan != nil {
-			key = fmt.Sprintf("%s %d° DAN", key, *a.CinturonDan)
+			key = fmt.Sprintf("%s %s DAN", key, roman(*a.CinturonDan))
 		}
 		porCinturon[key]++
 
@@ -150,122 +218,11 @@ func (s *Server) handleReporteAtletas(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// handleFichaAtleta genera la ficha técnica de un atleta en PDF (carta vertical).
-func (s *Server) handleFichaAtleta(w http.ResponseWriter, id int64) {
-	a, err := database.GetAtleta(s.db, id)
-	if errors.Is(err, sql.ErrNoRows) {
-		writeErr(w, http.StatusNotFound, "atleta no encontrado")
-		return
-	}
-	if err != nil {
-		writeErr(w, http.StatusInternalServerError, err.Error())
-		return
-	}
-
-	pdf := fpdf.New("P", "mm", "Letter", "")
-	tr := pdf.UnicodeTranslatorFromDescriptor("")
-	pdf.SetMargins(15, 15, 15)
-	pdf.AddPage()
-
-	pdf.SetFont("Arial", "B", 16)
-	pdf.SetTextColor(0, 47, 108)
-	pdf.CellFormat(0, 10, tr("SIGAT — Ficha Técnica del Atleta"), "", 1, "L", false, 0, "")
-	pdf.SetDrawColor(0, 47, 108)
-	pdf.SetLineWidth(0.5)
-	y := pdf.GetY()
-	pdf.Line(15, y, 201, y)
-	pdf.Ln(4)
-
-	// Foto (si existe el archivo en disco).
-	if a.FotoPath != nil && *a.FotoPath != "" {
-		if _, e := os.Stat(*a.FotoPath); e == nil {
-			pdf.ImageOptions(*a.FotoPath, 160, 30, 36, 0, false, fpdf.ImageOptions{ImageType: "", ReadDpi: true}, 0, "")
-		}
-	}
-
-	pdf.SetFont("Arial", "B", 14)
-	pdf.SetTextColor(20, 20, 20)
-	pdf.CellFormat(140, 8, tr(a.Apellidos+", "+a.Nombres), "", 1, "L", false, 0, "")
-	pdf.Ln(1)
-
-	campo := func(label, valor string) {
-		if valor == "" {
-			valor = "—"
-		}
-		pdf.SetFont("Arial", "B", 9)
-		pdf.SetTextColor(90, 90, 90)
-		pdf.CellFormat(48, 6, tr(label), "", 0, "L", false, 0, "")
-		pdf.SetFont("Arial", "", 10)
-		pdf.SetTextColor(20, 20, 20)
-		pdf.MultiCell(0, 6, tr(valor), "", "L", false)
-	}
-	sec := func(t string) {
-		pdf.Ln(2)
-		pdf.SetFont("Arial", "B", 11)
-		pdf.SetTextColor(0, 47, 108)
-		pdf.CellFormat(0, 7, tr(t), "B", 1, "L", false, 0, "")
-		pdf.Ln(1)
-	}
-
-	insc := a.FechaInscripcion
-	if !a.InscripcionDiaExacto && len(insc) >= 7 {
-		insc = insc[:7]
-	}
-	sec("Datos personales")
-	campo("Cédula", cedulaTxt(a.CedulaTipo, a.CedulaNumero))
-	campo("Fecha de nacimiento", fmt.Sprintf("%s  (%d años)", a.FechaNacimiento, a.Edad))
-	campo("Tipo de sangre", derefOr(a.TipoSangre))
-	campo("Teléfono principal", derefOr(a.Telefono))
-	if len(a.TelefonosContacto) > 0 {
-		campo("Teléfonos de contacto", strings.Join(a.TelefonosContacto, ", "))
-	}
-
-	sec("Formación")
-	campo("Escuela", a.EscuelaNombre)
-	campo("Entrenador (maestro)", a.MaestroNombre)
-	campo("Cinturón actual", cinturonTxt(a.CinturonColor, a.CinturonDan))
-	campo("Fecha de inicio", insc)
-	campo("Estado", a.Estado)
-
-	sec("Ubicación")
-	ubic := strings.Join(soloNoVacios(a.ParroquiaNom, a.MunicipioNom, a.CiudadNom, a.EstadoNom), ", ")
-	campo("Ubicación", ubic)
-	campo("Dirección", derefOr(a.DireccionDetalle))
-
-	if r := a.Representante; r != nil {
-		sec("Representante")
-		campo("Nombre", strings.TrimSpace(derefOr(r.Nombres)+" "+derefOr(r.Apellidos)))
-		campo("Cédula", cedulaTxt(r.CedulaTipo, r.CedulaNumero))
-		campo("Teléfono", derefOr(r.Telefono))
-		campo("Parentesco", derefOr(r.Parentesco))
-	}
-
-	pdf.SetY(-15)
-	pdf.SetFont("Arial", "I", 8)
-	pdf.SetTextColor(120, 120, 120)
-	pdf.CellFormat(0, 8, tr("Generado "+time.Now().Format("2006-01-02 15:04")+" — SIGAT"), "", 0, "C", false, 0, "")
-
-	w.Header().Set("Content-Type", "application/pdf")
-	w.Header().Set("Content-Disposition", `attachment; filename="ficha-atleta.pdf"`)
-	if err := pdf.Output(w); err != nil {
-		fmt.Printf("[ficha] error generando PDF: %v\n", err)
-	}
-}
-
 func derefOr(p *string) string {
 	if p == nil {
 		return ""
 	}
 	return *p
-}
-func soloNoVacios(vs ...string) []string {
-	out := []string{}
-	for _, v := range vs {
-		if strings.TrimSpace(v) != "" {
-			out = append(out, v)
-		}
-	}
-	return out
 }
 
 func cedulaTxt(tipo, numero *string) string {
@@ -283,9 +240,18 @@ func cinturonTxt(color string, dan *int) string {
 		return "—"
 	}
 	if dan != nil {
-		return fmt.Sprintf("%s %d° DAN", color, *dan)
+		return fmt.Sprintf("%s %s DAN", color, roman(*dan))
 	}
 	return color
+}
+
+// roman convierte 1..9 a numeración romana (para mostrar el DAN).
+func roman(n int) string {
+	nums := []string{"", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX"}
+	if n >= 1 && n <= 9 {
+		return nums[n]
+	}
+	return fmt.Sprintf("%d", n)
 }
 
 // recorta trunca un texto para que no desborde una celda de ancho w (mm).

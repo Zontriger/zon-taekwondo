@@ -12,6 +12,10 @@
 
   <!-- ===================== LOGIN ===================== -->
   <section id="view-login" class="login-wrap hidden">
+    <button id="btn-tema-login" class="btn-tema btn-tema-login" aria-label="Cambiar tema claro/oscuro" title="Modo claro/oscuro">
+      <svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+      <svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+    </button>
     <form id="login-form" class="login-card" autocomplete="on">
       <div class="brand">
         <img class="brand-logo brand-logo-lg" src="/logo.png" alt="Logo SIGAT" />
@@ -42,6 +46,10 @@
       </div>
       <div class="topbar-right">
         <span id="user-badge" class="user-badge"></span>
+        <button id="btn-tema" class="btn-icon btn-tema" aria-label="Cambiar tema claro/oscuro" title="Modo claro/oscuro">
+          <svg class="ico ico-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+          <svg class="ico ico-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        </button>
         <button id="btn-cuenta" class="btn btn-ghost btn-sm">
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>
           <span class="btn-label">Mi cuenta</span>
@@ -74,6 +82,10 @@
         <a class="nav-item admin-only" data-route="respaldo">
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           <span>Respaldo</span>
+        </a>
+        <a class="nav-item admin-only" data-route="config">
+          <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          <span>Configuración</span>
         </a>
         <a class="nav-item" data-route="ayuda">
           <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
@@ -113,7 +125,7 @@
               </select>
             </div>
             <div class="toolbar-row report-row">
-              <label class="inline-field">Registrado desde<input type="date" id="f-fdesde" /></label>
+              <label class="inline-field">Inscrito desde<input type="date" id="f-fdesde" /></label>
               <label class="inline-field">hasta<input type="date" id="f-fhasta" /></label>
               <button id="btn-limpiar-filtros" class="btn btn-ghost btn-sm hidden" title="Quitar todos los filtros">
                 <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
@@ -127,6 +139,10 @@
               <button id="btn-pdf-todos" class="btn btn-ghost btn-sm" title="PDF con todos los atletas, ignorando los filtros">
                 <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
                 <span>PDF (todos)</span>
+              </button>
+              <button id="btn-planilla-blanco" class="btn btn-ghost btn-sm" title="Descargar la planilla oficial en blanco para imprimir y llenar a mano">
+                <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="13" y2="17"/></svg>
+                <span>Planilla en blanco</span>
               </button>
             </div>
 
@@ -148,9 +164,28 @@
           </div>
 
           <div class="list-meta"><span id="list-count">—</span></div>
+
+          <div id="bulk-bar" class="bulk-bar hidden">
+            <span class="bulk-count"><b id="bulk-n">0</b> seleccionado(s)</span>
+            <button id="bulk-all" class="btn btn-ghost btn-sm hidden" title="Seleccionar todos los atletas del filtro actual">Seleccionar los <b id="bulk-all-n">0</b></button>
+            <span class="grow"></span>
+            <button id="bulk-pdf" class="btn btn-ghost btn-sm">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+              <span>PDF de seleccionados</span>
+            </button>
+            <button id="bulk-del" class="btn btn-danger btn-sm admin-only">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+              <span>Eliminar seleccionados</span>
+            </button>
+            <button id="bulk-clear" class="btn btn-ghost btn-sm" title="Quitar selección">Cancelar</button>
+          </div>
+
           <div class="table-wrap">
-            <table class="tabla">
-              <thead><tr><th>Atleta</th><th>Cédula</th><th>Edad</th><th>Escuela</th><th>Cinturón</th><th>Estado</th><th></th></tr></thead>
+            <table class="tabla tabla-atletas">
+              <thead><tr>
+                <th class="col-sel"><span id="sel-all" class="trichk" role="checkbox" tabindex="0" aria-label="Seleccionar" title="Seleccionar" data-state="none"></span></th>
+                <th>Atleta</th><th>Cédula</th><th>Edad</th><th>Escuela</th><th>Cinturón</th><th>Estado</th><th></th>
+              </tr></thead>
               <tbody id="tabla-body"></tbody>
             </table>
             <div id="empty" class="empty hidden"></div>
@@ -219,10 +254,20 @@
         <!-- ===================== SECCIÓN RESPALDO ===================== -->
         <section id="sec-respaldo" class="route-sec hidden">
           <h2 class="sec-title">Respaldo del sistema</h2>
+          <p id="ultimo-respaldo" class="last-backup hidden"></p>
           <div class="card">
-            <h3>Base de datos completa</h3>
-            <p class="muted-p">Descarga una copia íntegra de la base de datos (<code>.db</code>) como respaldo total.</p>
-            <button id="btn-dl-db" class="btn btn-primary btn-sm">Descargar base de datos</button>
+            <h3>Respaldo completo (recomendado)</h3>
+            <p class="muted-p">Descarga un solo archivo <code>.zip</code> con <b>la base de datos y todos los archivos</b>
+              (fotos y documentos de los atletas). Es el respaldo total del sistema.</p>
+            <button id="btn-dl-full" class="btn btn-primary btn-sm">
+              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Descargar respaldo completo (.zip)</span>
+            </button>
+          </div>
+          <div class="card">
+            <h3>Solo base de datos</h3>
+            <p class="muted-p">Descarga únicamente la base de datos (<code>.db</code>), sin las fotos ni documentos.</p>
+            <button id="btn-dl-db" class="btn btn-ghost btn-sm">Descargar base de datos</button>
           </div>
           <div class="card">
             <h3>Exportar tabla (CSV)</h3>
@@ -234,6 +279,23 @@
             <p class="muted-p danger-note">⚠ Importar <b>reemplaza por completo</b> el contenido de la tabla seleccionada.</p>
             <div class="row-gap"><select id="imp-tabla"></select><input type="file" id="imp-file" accept=".csv" /><button id="btn-imp" class="btn btn-danger btn-sm">Importar y reemplazar</button></div>
             <p id="imp-msg" class="muted-p"></p>
+          </div>
+        </section>
+
+        <!-- ===================== SECCIÓN CONFIGURACIÓN ===================== -->
+        <section id="sec-config" class="route-sec hidden">
+          <h2 class="sec-title">Configuración</h2>
+          <div class="card">
+            <h3>Tamaño máximo por archivo</h3>
+            <p class="muted-p">Límite de tamaño (en megabytes) para cada foto o documento que se suba a la ficha
+              de un atleta. Valor por defecto: 5 MB.</p>
+            <form id="form-config" class="row-gap" novalidate>
+              <label class="inline-field">Máximo (MB)
+                <input id="cfg-maxmb" inputmode="numeric" maxlength="3" style="width:5rem" />
+              </label>
+              <button type="submit" id="cfg-submit" class="btn btn-primary btn-sm">Guardar</button>
+              <span id="cfg-msg" class="muted-p" style="margin:0"></span>
+            </form>
           </div>
         </section>
 
@@ -276,19 +338,19 @@
 
           <div class="card help-card">
             <h3>Respaldo y restauración</h3>
-            <p class="muted-p">Toda la información vive en el archivo <code>app.db</code>, ubicado en la misma carpeta que el
-              ejecutable. Cuando se suban fotos o documentos de atletas, estos se guardarán en una carpeta <code>data/</code>
-              junto al ejecutable.</p>
+            <p class="muted-p">Toda la información vive en el archivo <code>app.db</code> y, cuando hay fotos o documentos de
+              atletas, en la carpeta <code>data/</code>, ambos junto al ejecutable.</p>
             <p class="help-step"><b>Para hacer un respaldo completo:</b></p>
             <ol class="help-list">
-              <li>Vaya a <b>Respaldo → Descargar base de datos</b> para obtener una copia de <code>app.db</code>.</li>
-              <li>Copie también la carpeta <code>data/</code> (si existe) para conservar fotos y documentos.</li>
-              <li>Guarde ambos en un lugar seguro (pendrive, disco externo, nube).</li>
+              <li>Vaya a <b>Respaldo → Descargar respaldo completo (.zip)</b>: obtendrá un solo archivo con la base de
+                datos <b>y</b> todas las fotos y documentos.</li>
+              <li>Guarde ese <code>.zip</code> en un lugar seguro (pendrive, disco externo, nube).</li>
             </ol>
             <p class="help-step"><b>Para restaurar en otra máquina o recuperar datos:</b></p>
             <ol class="help-list">
-              <li>Cierre el sistema (cierre la ventana del servidor).</li>
-              <li>Reemplace el archivo <code>app.db</code> por su respaldo, y la carpeta <code>data/</code> si la tiene.</li>
+              <li>Cierre el sistema (opción <b>Salir</b> del icono de la bandeja).</li>
+              <li>Descomprima el <code>.zip</code> de respaldo junto al ejecutable, reemplazando el archivo
+                <code>app.db</code> y la carpeta <code>data/</code>.</li>
               <li>Vuelva a abrir <code>app.exe</code>: la información restaurada aparecerá tal cual.</li>
             </ol>
             <p class="muted-p">También puede exportar o importar tablas individuales en formato <b>CSV</b> (por ejemplo,
@@ -333,7 +395,7 @@
           <div class="grid2">
             <label>Nombres *<input id="a-nombres" maxlength="60" required /></label>
             <label>Apellidos *<input id="a-apellidos" maxlength="60" required /></label>
-            <label>Cédula <small class="opt">(opcional en menores)</small>
+            <label><span class="cap">Cédula <small class="opt">(opcional en menores)</small></span>
               <div class="cedula-wrap">
                 <select id="a-cedula-tipo" class="ced-tipo"><option value="V" selected>V</option><option value="E">E</option><option value="P">P</option></select>
                 <input id="a-cedula-numero" class="ced-num" inputmode="numeric" maxlength="9" placeholder="Número" />
@@ -354,6 +416,14 @@
                 <option>B+</option><option>B-</option><option>AB+</option><option>AB-</option>
               </select>
             </label>
+            <label>Sexo
+              <select id="a-sexo">
+                <option value="">No indicado</option>
+                <option value="M">Masculino</option>
+                <option value="F">Femenino</option>
+              </select>
+            </label>
+            <label><span class="cap">Email <small class="opt">(opcional)</small></span><input id="a-email" type="email" maxlength="80" /></label>
           </div>
           <div class="contactos">
             <div class="contactos-head">
@@ -396,14 +466,29 @@
               </div>
             </label>
             <label class="check-inline"><input type="checkbox" id="a-ins-nodia" /><span>No sé el día</span></label>
+            <label><span class="cap">Horario de entrenamiento <small class="opt">(opcional)</small></span><input id="a-horario" maxlength="60" placeholder="Ej. Lun-Mié-Vie 4:00pm" /></label>
           </div>
+        </fieldset>
+
+        <fieldset id="fs-fisicos">
+          <legend>Datos físicos y estudios <small class="opt">(planilla oficial)</small></legend>
+          <div class="grid3">
+            <label>Estatura<input id="a-estatura" maxlength="12" placeholder="Ej. 1,70 m" /></label>
+            <label>Peso<input id="a-peso" maxlength="12" placeholder="Ej. 65 kg" /></label>
+            <label>I.M.C. (adultos)<input id="a-imc" maxlength="12" readonly tabindex="-1" style="background-color: var(--bg-hover);" /></label>
+            <label>F.C. (adultos)<input id="a-fc" maxlength="12" placeholder="Frec. cardíaca" /></label>
+            <label>Talla de camisa<input id="a-talla-camisa" maxlength="10" /></label>
+            <label>Talla de pantalón<input id="a-talla-pantalon" maxlength="10" /></label>
+          </div>
+          <label>Instituto donde estudia<input id="a-instituto" maxlength="120" /></label>
+          <label>Dirección de la institución educativa<textarea id="a-instituto-dir" rows="2" maxlength="160"></textarea></label>
         </fieldset>
 
         <fieldset id="fs-cinturon">
           <legend>Cinturón inicial</legend>
           <div class="grid2">
             <label>Cinturón<select id="a-cinturon"><option value="">No aplica</option></select></label>
-            <label>Fecha de asignación<input type="date" id="a-cinturon-fecha" /></label>
+            <label id="cinturon-fecha-wrap">Fecha de asignación<input type="date" id="a-cinturon-fecha" /></label>
             <label id="dan-wrap" class="hidden">DAN (1–9)<input id="a-dan" inputmode="numeric" maxlength="1" /></label>
           </div>
         </fieldset>
@@ -428,9 +513,34 @@
                 <option value="Tío/a">Tío/a</option><option value="Hermano/a">Hermano/a</option>
                 <option value="Otro">Otro…</option>
               </select>
+              <input id="r-parentesco-otro" class="hidden r-otro" maxlength="40" placeholder="Especifique el parentesco" />
             </label>
-            <label id="r-parentesco-otro-wrap" class="hidden">Especifique parentesco<input id="r-parentesco-otro" maxlength="40" /></label>
+            <label><span class="cap">Email <small class="opt">(opcional)</small></span><input id="r-email" type="email" maxlength="80" /></label>
           </div>
+          <div class="rep-trabajo">
+            <label><span class="cap">Lugar de trabajo <small class="opt">(opcional)</small></span><input id="r-lugar-trabajo" maxlength="120" /></label>
+            <label><span class="cap">Dirección de trabajo <small class="opt">(opcional)</small></span><textarea id="r-direccion-trabajo" rows="2" maxlength="160"></textarea></label>
+          </div>
+        </fieldset>
+
+        <fieldset id="fs-medica">
+          <legend>Información médica <small class="opt">(planilla oficial)</small></legend>
+          <div class="med-row">
+            <span class="med-q">¿Padece de alguna enfermedad?</span>
+            <select id="a-med-enfermedad" class="med-sel"><option value="">—</option><option value="si">Sí</option><option value="no">No</option></select>
+            <input id="a-med-enfermedad-det" class="med-det" maxlength="120" placeholder="Especifique" />
+          </div>
+          <div class="med-row">
+            <span class="med-q">¿Es alérgico a algún medicamento?</span>
+            <select id="a-med-alergia" class="med-sel"><option value="">—</option><option value="si">Sí</option><option value="no">No</option></select>
+            <input id="a-med-alergia-det" class="med-det" maxlength="120" placeholder="Especifique" />
+          </div>
+          <div class="med-row">
+            <span class="med-q">¿Ha sido operado?</span>
+            <select id="a-med-operado" class="med-sel"><option value="">—</option><option value="si">Sí</option><option value="no">No</option></select>
+            <input id="a-med-operado-det" class="med-det" maxlength="120" placeholder="Especifique" />
+          </div>
+          <label>En caso de emergencia llamar a<input id="a-med-emergencia" maxlength="120" placeholder="Nombre y teléfono" /></label>
         </fieldset>
 
         <div id="form-ayuda" class="form-ayuda hidden"></div>
@@ -440,6 +550,20 @@
           <button type="submit" id="a-submit" class="btn btn-primary">Guardar</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- ===================== MODAL: DETALLE DE REGISTRO (tablas) ===================== -->
+  <div id="modal-registro" class="modal-backdrop hidden">
+    <div class="modal modal-sm">
+      <div class="modal-head">
+        <h2 id="reg-title">Detalle</h2>
+        <button class="modal-x" data-close aria-label="Cerrar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <div class="det-grid" id="reg-body"></div>
+        <div class="det-actions" id="reg-actions"></div>
+      </div>
     </div>
   </div>
 
@@ -591,7 +715,7 @@
       <form id="form-maestro" class="modal-body" novalidate>
         <input type="hidden" id="mst-id" />
         <label id="mst-estado-wrap">Estado<select id="mst-estado"></select></label>
-        <label id="mst-ciudad-wrap">Ciudad <small class="opt">(opcional)</small><select id="mst-ciudad"></select></label>
+        <label id="mst-ciudad-wrap"><span class="cap">Ciudad <small class="opt">(opcional)</small></span><select id="mst-ciudad"></select></label>
         <label id="mst-municipio-wrap">Municipio<select id="mst-municipio"></select></label>
         <label id="mst-nombre-wrap">Nombre *<input id="mst-nombre" maxlength="80" /></label>
         <div id="mst-cinturon-extra" class="grid2 hidden">
@@ -637,6 +761,60 @@
         </div>
       </form>
     </div>
+  </div>
+
+  <!-- ===================== MODAL: SUBIR DOCUMENTO ===================== -->
+  <div id="modal-documento" class="modal-backdrop hidden">
+    <div class="modal modal-sm">
+      <div class="modal-head">
+        <h2>Subir documento</h2>
+        <button class="modal-x" data-close aria-label="Cerrar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <form id="form-documento" class="modal-body" novalidate>
+        <input type="hidden" id="doc-atleta-id" />
+        <label>Nombre del documento *<input id="doc-nombre" maxlength="80" placeholder="Ej. Partida de nacimiento" required /></label>
+        <label>Archivo *<input type="file" id="doc-file" accept="application/pdf,.pdf,image/jpeg,image/png,.jpg,.jpeg,.png" required /></label>
+        <p class="muted-p" id="doc-hint" style="margin:0">PDF o imagen (JPG, PNG).</p>
+        <p id="doc-error" class="form-error"></p>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
+          <button type="submit" id="doc-submit" class="btn btn-primary">Subir</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Input oculto para subir/renovar la foto del atleta desde su ficha. -->
+  <input type="file" id="foto-file" accept="image/jpeg,image/png,.jpg,.jpeg,.png" class="hidden" />
+
+  <!-- ===================== MODAL: RECORTAR FOTO ===================== -->
+  <div id="modal-crop" class="modal-backdrop hidden">
+    <div class="modal modal-sm">
+      <div class="modal-head">
+        <h2>Ajustar foto</h2>
+        <button class="modal-x" data-close aria-label="Cerrar"><svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+      <div class="modal-body">
+        <p class="muted-p" style="margin:0">Arrastra la imagen para reubicarla y usa el control para acercar o alejar.</p>
+        <div class="crop-viewport" id="crop-vp"><img id="crop-img" alt="" draggable="false"></div>
+        <label class="crop-zoom">Zoom
+          <input type="range" id="crop-zoom" min="1" max="3" step="0.01" value="1" />
+        </label>
+        <p id="crop-error" class="form-error"></p>
+        <div class="modal-foot">
+          <button type="button" class="btn btn-ghost" data-close>Cancelar</button>
+          <button type="button" class="btn btn-primary" id="crop-ok">Usar foto</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================== LIGHTBOX: FOTO EN GRANDE ===================== -->
+  <div id="lightbox" class="modal-backdrop lightbox hidden">
+    <button class="lightbox-x" id="lightbox-x" aria-label="Cerrar">
+      <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <img id="lightbox-img" alt="Foto del atleta" />
   </div>
 
   <div id="toast" class="toast hidden"></div>

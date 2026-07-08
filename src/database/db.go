@@ -134,6 +134,72 @@ func migrate(db *sql.DB) error {
 	if err := migrarEntrenadores(db); err != nil {
 		return err
 	}
+	if err := migrarArchivos(db); err != nil {
+		return err
+	}
+	if err := migrarPlanilla(db); err != nil {
+		return err
+	}
+	return nil
+}
+
+// migrarPlanilla agrega las columnas del formato oficial "Planilla del Atleta"
+// (Club Taekwondo Elite Oro Carrizal): datos físicos, estudios, información
+// médica y datos laborales del representante. Idempotente.
+func migrarPlanilla(db *sql.DB) error {
+	cols := []struct{ tabla, col, tipo string }{
+		{"atleta", "horario", "TEXT"},
+		{"atleta", "sexo", "TEXT"}, // 'M' | 'F'
+		{"atleta", "email", "TEXT"},
+		{"atleta", "estatura", "TEXT"},
+		{"atleta", "peso", "TEXT"},
+		{"atleta", "imc", "TEXT"},
+		{"atleta", "fc", "TEXT"},
+		{"atleta", "talla_camisa", "TEXT"},
+		{"atleta", "talla_pantalon", "TEXT"},
+		{"atleta", "instituto", "TEXT"},
+		{"atleta", "instituto_direccion", "TEXT"},
+		{"atleta", "med_enfermedad", "INTEGER"},
+		{"atleta", "med_enfermedad_detalle", "TEXT"},
+		{"atleta", "med_alergia", "INTEGER"},
+		{"atleta", "med_alergia_detalle", "TEXT"},
+		{"atleta", "med_operado", "INTEGER"},
+		{"atleta", "med_operado_detalle", "TEXT"},
+		{"atleta", "med_emergencia", "TEXT"},
+		{"representante", "lugar_trabajo", "TEXT"},
+		{"representante", "direccion_trabajo", "TEXT"},
+		{"representante", "email", "TEXT"},
+	}
+	for _, c := range cols {
+		if !columnExists(db, c.tabla, c.col) {
+			if _, err := db.Exec("ALTER TABLE " + c.tabla + " ADD COLUMN " + c.col + " " + c.tipo); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// migrarArchivos crea las tablas de soporte para archivos subidos (config del
+// sistema y documentos por atleta). Idempotente.
+func migrarArchivos(db *sql.DB) error {
+	for _, stmt := range []string{
+		`CREATE TABLE IF NOT EXISTS config (
+			clave TEXT PRIMARY KEY,
+			valor TEXT NOT NULL)`,
+		`CREATE TABLE IF NOT EXISTS documento (
+			id         INTEGER PRIMARY KEY,
+			atleta_id  INTEGER NOT NULL REFERENCES atleta(id) ON DELETE CASCADE,
+			nombre     TEXT NOT NULL,
+			archivo    TEXT NOT NULL,
+			creado_en  TEXT NOT NULL DEFAULT (datetime('now')))`,
+		`CREATE INDEX IF NOT EXISTS idx_documento_atleta ON documento (atleta_id)`,
+		`INSERT OR IGNORE INTO config (clave, valor) VALUES ('max_upload_mb', '5')`,
+	} {
+		if _, err := db.Exec(stmt); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 

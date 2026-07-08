@@ -64,6 +64,14 @@ func buildFiltro(f AtletaFiltro) (string, []any, error) {
 		args = append(args, like, like, like)
 	}
 
+	if len(f.IDs) > 0 {
+		ph := strings.TrimRight(strings.Repeat("?,", len(f.IDs)), ",")
+		clauses = append(clauses, "a.id IN ("+ph+")")
+		for _, id := range f.IDs {
+			args = append(args, id)
+		}
+	}
+
 	if f.Dominio != nil && len(f.Dominio.Condiciones) > 0 {
 		joiner := " AND "
 		if f.Dominio.Match == "any" {

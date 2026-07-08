@@ -1,12 +1,15 @@
 package backend
 
 import (
+	"archive/zip"
 	"encoding/csv"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"zon-taekwondo/database"
 )
@@ -31,6 +34,8 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 	switch {
 	case rest == "db" && r.Method == http.MethodGet:
 		s.descargarDB(w)
+	case rest == "full" && r.Method == http.MethodGet:
+		s.descargarRespaldoCompleto(w)
 	case strings.HasPrefix(rest, "tabla/"):
 		nombre := strings.TrimPrefix(rest, "tabla/")
 		nombre = strings.TrimSuffix(nombre, ".csv")
@@ -51,7 +56,13 @@ func (s *Server) handleBackup(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// registrarRespaldo guarda la fecha/hora del último respaldo descargado.
+func (s *Server) registrarRespaldo() {
+	database.SetConfig(s.db, "ultimo_respaldo", time.Now().Format(time.RFC3339))
+}
+
 func (s *Server) descargarDB(w http.ResponseWriter) {
+	s.registrarRespaldo()
 	// Consolidar el WAL en el archivo principal antes de servirlo.
 	s.db.Exec(`PRAGMA wal_checkpoint(TRUNCATE)`)
 	f, err := os.Open(s.dbPath)
@@ -65,6 +76,52 @@ func (s *Server) descargarDB(w http.ResponseWriter) {
 	if _, err := io.Copy(w, f); err != nil {
 		fmt.Printf("[backup] error enviando BD: %v\n", err)
 	}
+}
+
+// descargarRespaldoCompleto empaqueta en un .zip la base de datos (app.db) junto
+// con toda la carpeta data/ (fotos y documentos), de modo que un solo archivo
+// contenga TODO el sistema para respaldar o migrar.
+func (s *Server) descargarRespaldoCompleto(w http.ResponseWriter) {
+	s.registrarRespaldo()
+	// Consolidar el WAL en el archivo principal antes de empaquetarlo.
+	s.db.Exec(`PRAGMA wal_checkpoint(TRUNCATE)`)
+
+	w.Header().Set("Content-Type", "application/zip")
+	w.Header().Set("Content-Disposition",
+		fmt.Sprintf(`attachment; filename="respaldo-completo-%s.zip"`, time.Now().Format("2006-01-02")))
+	zw := zip.NewWriter(w)
+	defer zw.Close()
+
+	// 1) La base de datos, en la raíz del zip.
+	if f, err := os.Open(s.dbPath); err == nil {
+		if fw, e := zw.Create("app.db"); e == nil {
+			io.Copy(fw, f)
+		}
+		f.Close()
+	}
+
+	// 2) Toda la carpeta data/ (fotos y documentos), conservando su estructura.
+	filepath.Walk(dataDir, func(path string, info os.FileInfo, err error) error {
+		if err != nil || info.IsDir() {
+			return nil
+		}
+		rel, e := filepath.Rel(".", path)
+		if e != nil {
+			rel = path
+		}
+		nombre := filepath.ToSlash(rel) // rutas con '/' dentro del zip
+		fw, e := zw.Create(nombre)
+		if e != nil {
+			return nil
+		}
+		f, e := os.Open(path)
+		if e != nil {
+			return nil
+		}
+		io.Copy(fw, f)
+		f.Close()
+		return nil
+	})
 }
 
 func (s *Server) exportarTabla(w http.ResponseWriter, tabla string) {

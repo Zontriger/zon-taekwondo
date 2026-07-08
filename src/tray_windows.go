@@ -4,6 +4,7 @@ package main
 
 import (
 	"log"
+	"time"
 	"unsafe"
 
 	"fyne.io/systray"
@@ -20,11 +21,13 @@ var (
 	procGetConsoleProcessList = kernel32DLL.NewProc("GetConsoleProcessList")
 	procShowWindow            = user32DLL.NewProc("ShowWindow")
 	procSetForegroundWindow   = user32DLL.NewProc("SetForegroundWindow")
+	procIsIconic              = user32DLL.NewProc("IsIconic")
 )
 
 const (
-	swHide = 0
-	swShow = 5
+	swHide    = 0
+	swShow    = 5
+	swRestore = 9 // muestra y restaura desde minimizado
 )
 
 var (
@@ -53,30 +56,78 @@ func hideConsoleIfOwned() {
 // tenemosConsola indica si controlamos una consola propia que se puede alternar.
 func tenemosConsola() bool { return consoleHWND != 0 }
 
-// mostrarConsola muestra u oculta la ventana de consola propia.
+// mostrarConsola muestra u oculta la ventana de consola propia. Al mostrar usa
+// swRestore para des-minimizarla si venía enviada a la bandeja.
 func mostrarConsola(show bool) {
 	if consoleHWND == 0 {
 		return
 	}
 	if show {
-		procShowWindow.Call(consoleHWND, swShow)
+		procShowWindow.Call(consoleHWND, swRestore)
 		procSetForegroundWindow.Call(consoleHWND)
 		consoleVisible = true
 	} else {
 		procShowWindow.Call(consoleHWND, swHide)
 		consoleVisible = false
 	}
+	actualizarTituloConsola()
+}
+
+// esIconica indica si la ventana está minimizada (IsIconic != 0).
+func esIconica(hwnd uintptr) bool {
+	r, _, _ := procIsIconic.Call(hwnd)
+	return r != 0
+}
+
+// vigilarConsola detecta cuándo el usuario minimiza manualmente la consola y la
+// envía a la bandeja (la oculta del taskbar) en lugar de dejarla minimizada. La
+// consola se recupera desde el menú de la bandeja o haciendo clic en el icono.
+func vigilarConsola() {
+	if consoleHWND == 0 {
+		return
+	}
+	go func() {
+		for {
+			time.Sleep(400 * time.Millisecond)
+			if consoleHWND == 0 {
+				return
+			}
+			if consoleVisible && esIconica(consoleHWND) {
+				procShowWindow.Call(consoleHWND, swHide)
+				consoleVisible = false
+				actualizarTituloConsola()
+			}
+		}
+	}()
 }
 
 // --- Icono de la bandeja del sistema -------------------------------------------
 
 var trayCfg trayConfig
 
+// mConsole es la opción de menú "Mostrar/Ocultar consola" (nil si no hay consola
+// propia). Se guarda a nivel de paquete para poder actualizar su título tanto
+// desde el menú como desde la vigilancia de minimizado.
+var mConsole *systray.MenuItem
+
+// actualizarTituloConsola sincroniza el texto del menú con el estado real.
+func actualizarTituloConsola() {
+	if mConsole == nil {
+		return
+	}
+	if consoleVisible {
+		mConsole.SetTitle("Ocultar consola")
+	} else {
+		mConsole.SetTitle("Mostrar consola")
+	}
+}
+
 // runTray arranca el icono de la bandeja en su propia goroutine (systray.Run
 // bloquea y gestiona el bucle de mensajes de Win32). Un clic sobre el icono
-// abre el menú.
+// muestra la consola; un clic sobre el icono también abre el menú (Abrir/Salir).
 func runTray(cfg trayConfig) {
 	trayCfg = cfg
+	vigilarConsola() // enviar la consola a la bandeja cuando se minimice
 	go func() {
 		// La bandeja es opcional: si falla (p. ej. sin sesión de escritorio),
 		// se registra y el servidor sigue funcionando igual.
@@ -99,11 +150,15 @@ func trayOnReady() {
 	systray.SetTitle("SIGAT")
 	systray.SetTooltip(trayCfg.tooltip)
 
+	// Clic sobre el icono de la bandeja: mostrar la consola (si la controlamos).
+	if tenemosConsola() {
+		systray.SetOnTapped(func() { mostrarConsola(true) })
+	}
+
 	mOpen := systray.AddMenuItem("Abrir sistema", "Abrir el sistema en el navegador")
 
 	// "Mostrar/Ocultar consola": solo si controlamos una consola propia (doble
 	// clic). Si no, el canal queda nil y su caso del select nunca dispara.
-	var mConsole *systray.MenuItem
 	var consoleCh <-chan struct{}
 	if tenemosConsola() {
 		mConsole = systray.AddMenuItem("Mostrar consola", "Mostrar u ocultar la ventana de consola")
@@ -121,11 +176,6 @@ func trayOnReady() {
 				}
 			case <-consoleCh:
 				mostrarConsola(!consoleVisible)
-				if consoleVisible {
-					mConsole.SetTitle("Ocultar consola")
-				} else {
-					mConsole.SetTitle("Mostrar consola")
-				}
 			case <-mQuit.ClickedCh:
 				if trayCfg.onQuit != nil {
 					trayCfg.onQuit()

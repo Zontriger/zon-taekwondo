@@ -105,9 +105,15 @@ func (s *Server) handleAtletaItem(w http.ResponseWriter, r *http.Request) {
 		s.retirarAtleta(w, r, id)
 	case "reactivar":
 		s.reactivarAtleta(w, r, id)
-	case "ficha.pdf":
-		s.handleFichaAtleta(w, id)
+	case "planilla.pdf":
+		s.handlePlanillaAtleta(w, r, id)
+	case "foto":
+		s.handleFoto(w, r, id)
 	default:
+		if strings.HasPrefix(sub, "documentos") {
+			s.handleDocumentos(w, r, id, sub)
+			return
+		}
 		writeErr(w, http.StatusNotFound, "recurso no encontrado")
 	}
 }
@@ -344,6 +350,12 @@ func (s *Server) validarAtleta(in *database.AtletaInput) map[string]string {
 		errs["telefono"] = "El teléfono principal es requerido"
 	}
 
+	// Información médica (planilla): si la respuesta es "sí", el detalle es
+	// obligatorio; si es "no"/sin responder, el detalle se descarta.
+	validarMedica(in.MedEnfermedad, &in.MedEnfermedadDet, errs, "med_enfermedad_detalle")
+	validarMedica(in.MedAlergia, &in.MedAlergiaDet, errs, "med_alergia_detalle")
+	validarMedica(in.MedOperado, &in.MedOperadoDet, errs, "med_operado_detalle")
+
 	// Ubicación jerárquica: rellenar ancestros desde el nivel más profundo.
 	database.NormalizarUbicacion(s.db, in)
 	return errs
@@ -365,6 +377,18 @@ func validarCedula(tipo, numero string, dstTipo, dstNumero **string, errs map[st
 	}
 	*dstTipo = strPtr(tipo)
 	*dstNumero = strPtr(numero)
+}
+
+// validarMedica exige el detalle cuando la respuesta es "sí" y lo limpia cuando
+// es "no" o no se respondió.
+func validarMedica(estado *bool, detalle **string, errs map[string]string, key string) {
+	if estado != nil && *estado {
+		if vacio(*detalle) {
+			errs[key] = "Especifique (obligatorio si respondió Sí)"
+		}
+	} else {
+		*detalle = nil
+	}
 }
 
 // validarDan aplica la regla: negro ⇒ dan 1..9 obligatorio; no negro ⇒ dan NULL.

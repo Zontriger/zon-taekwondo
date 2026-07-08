@@ -27,7 +27,26 @@ type AtletaInput struct {
 	TipoSangre           *string        `json:"tipo_sangre"`
 	FechaInscripcion     string         `json:"fecha_inscripcion"`
 	InscripcionDiaExacto bool           `json:"inscripcion_dia_exacto"`
-	Representante        *Representante `json:"representante"`
+	// Campos del formato oficial "Planilla del Atleta".
+	Horario            *string `json:"horario"`
+	Sexo               *string `json:"sexo"`
+	Email              *string `json:"email"`
+	Estatura           *string `json:"estatura"`
+	Peso               *string `json:"peso"`
+	IMC                *string `json:"imc"`
+	FC                 *string `json:"fc"`
+	TallaCamisa        *string `json:"talla_camisa"`
+	TallaPantalon      *string `json:"talla_pantalon"`
+	Instituto          *string `json:"instituto"`
+	InstitutoDireccion *string `json:"instituto_direccion"`
+	MedEnfermedad      *bool   `json:"med_enfermedad"`
+	MedEnfermedadDet   *string `json:"med_enfermedad_detalle"`
+	MedAlergia         *bool   `json:"med_alergia"`
+	MedAlergiaDet      *string `json:"med_alergia_detalle"`
+	MedOperado         *bool   `json:"med_operado"`
+	MedOperadoDet      *string `json:"med_operado_detalle"`
+	MedEmergencia      *string `json:"med_emergencia"`
+	Representante      *Representante `json:"representante"`
 	// Cinturón inicial (solo en creación).
 	CinturonID    *int64  `json:"cinturon_id"`
 	Dan           *int    `json:"dan"`
@@ -48,11 +67,17 @@ func CreateAtleta(db *sql.DB, in AtletaInput, entrenadorID int64) (int64, error)
 		INSERT INTO atleta
 			(foto_path, nombres, apellidos, cedula_tipo, cedula_numero, fecha_nacimiento,
 			 telefono, estado_id, ciudad_id, municipio_id, parroquia_id, direccion_detalle, escuela_id,
-			 maestro_id, tipo_sangre, fecha_inscripcion, inscripcion_dia_exacto)
-		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+			 maestro_id, tipo_sangre, fecha_inscripcion, inscripcion_dia_exacto,
+			 horario, sexo, email, estatura, peso, imc, fc, talla_camisa, talla_pantalon,
+			 instituto, instituto_direccion, med_enfermedad, med_enfermedad_detalle,
+			 med_alergia, med_alergia_detalle, med_operado, med_operado_detalle, med_emergencia)
+		VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?,?, ?,?,?,?,?,?,?,?,?)`,
 		in.FotoPath, in.Nombres, in.Apellidos, in.CedulaTipo, in.CedulaNumero, in.FechaNacimiento,
 		in.Telefono, in.EstadoID, in.CiudadID, in.MunicipioID, in.ParroquiaID, in.DireccionDetalle,
-		in.EscuelaID, in.MaestroID, in.TipoSangre, in.FechaInscripcion, boolToInt(in.InscripcionDiaExacto))
+		in.EscuelaID, in.MaestroID, in.TipoSangre, in.FechaInscripcion, boolToInt(in.InscripcionDiaExacto),
+		in.Horario, in.Sexo, in.Email, in.Estatura, in.Peso, in.IMC, in.FC, in.TallaCamisa, in.TallaPantalon,
+		in.Instituto, in.InstitutoDireccion, boolPtrDB(in.MedEnfermedad), in.MedEnfermedadDet,
+		boolPtrDB(in.MedAlergia), in.MedAlergiaDet, boolPtrDB(in.MedOperado), in.MedOperadoDet, in.MedEmergencia)
 	if err != nil {
 		return 0, mapErr(err)
 	}
@@ -107,15 +132,24 @@ func UpdateAtleta(db *sql.DB, id int64, in AtletaInput, entrenadorID int64) erro
 	}
 	defer tx.Rollback()
 
+	// Nota: foto_path NO se toca aquí. La foto se gestiona con su propio endpoint
+	// (/foto); incluirla borraría la foto en cada edición del formulario.
 	res, err := tx.Exec(`
 		UPDATE atleta SET
-			foto_path=?, nombres=?, apellidos=?, cedula_tipo=?, cedula_numero=?, fecha_nacimiento=?,
+			nombres=?, apellidos=?, cedula_tipo=?, cedula_numero=?, fecha_nacimiento=?,
 			telefono=?, estado_id=?, ciudad_id=?, municipio_id=?, parroquia_id=?, direccion_detalle=?,
-			escuela_id=?, maestro_id=?, tipo_sangre=?, fecha_inscripcion=?, inscripcion_dia_exacto=?
+			escuela_id=?, maestro_id=?, tipo_sangre=?, fecha_inscripcion=?, inscripcion_dia_exacto=?,
+			horario=?, sexo=?, email=?, estatura=?, peso=?, imc=?, fc=?, talla_camisa=?, talla_pantalon=?,
+			instituto=?, instituto_direccion=?, med_enfermedad=?, med_enfermedad_detalle=?,
+			med_alergia=?, med_alergia_detalle=?, med_operado=?, med_operado_detalle=?, med_emergencia=?
 		WHERE id=?`,
-		in.FotoPath, in.Nombres, in.Apellidos, in.CedulaTipo, in.CedulaNumero, in.FechaNacimiento,
+		in.Nombres, in.Apellidos, in.CedulaTipo, in.CedulaNumero, in.FechaNacimiento,
 		in.Telefono, in.EstadoID, in.CiudadID, in.MunicipioID, in.ParroquiaID, in.DireccionDetalle,
-		in.EscuelaID, in.MaestroID, in.TipoSangre, in.FechaInscripcion, boolToInt(in.InscripcionDiaExacto), id)
+		in.EscuelaID, in.MaestroID, in.TipoSangre, in.FechaInscripcion, boolToInt(in.InscripcionDiaExacto),
+		in.Horario, in.Sexo, in.Email, in.Estatura, in.Peso, in.IMC, in.FC, in.TallaCamisa, in.TallaPantalon,
+		in.Instituto, in.InstitutoDireccion, boolPtrDB(in.MedEnfermedad), in.MedEnfermedadDet,
+		boolPtrDB(in.MedAlergia), in.MedAlergiaDet, boolPtrDB(in.MedOperado), in.MedOperadoDet, in.MedEmergencia,
+		id)
 	if err != nil {
 		return mapErr(err)
 	}
@@ -158,6 +192,9 @@ func GetAtleta(db *sql.DB, id int64) (*Atleta, error) {
 		       a.fecha_nacimiento, a.telefono,
 		       a.estado_id, a.ciudad_id, a.municipio_id, a.parroquia_id, a.direccion_detalle,
 		       a.escuela_id, a.maestro_id, a.tipo_sangre, a.fecha_inscripcion, a.inscripcion_dia_exacto,
+		       a.horario, a.sexo, a.email, a.estatura, a.peso, a.imc, a.fc, a.talla_camisa, a.talla_pantalon,
+		       a.instituto, a.instituto_direccion, a.med_enfermedad, a.med_enfermedad_detalle,
+		       a.med_alergia, a.med_alergia_detalle, a.med_operado, a.med_operado_detalle, a.med_emergencia,
 		       e.nombre, es.nombre, ci.nombre, m.nombre, p.nombre,
 		       (ma.nombres || ' ' || ma.apellidos)
 		  FROM atleta a
@@ -172,6 +209,9 @@ func GetAtleta(db *sql.DB, id int64) (*Atleta, error) {
 		&a.FechaNacimiento, &a.Telefono,
 		&a.EstadoID, &a.CiudadID, &a.MunicipioID, &a.ParroquiaID, &a.DireccionDetalle,
 		&a.EscuelaID, &a.MaestroID, &a.TipoSangre, &a.FechaInscripcion, &diaExacto,
+		&a.Horario, &a.Sexo, &a.Email, &a.Estatura, &a.Peso, &a.IMC, &a.FC, &a.TallaCamisa, &a.TallaPantalon,
+		&a.Instituto, &a.InstitutoDireccion, &nBool{&a.MedEnfermedad}, &a.MedEnfermedadDet,
+		&nBool{&a.MedAlergia}, &a.MedAlergiaDet, &nBool{&a.MedOperado}, &a.MedOperadoDet, &a.MedEmergencia,
 		&nullStr{&a.EscuelaNombre}, &nullStr{&a.EstadoNom}, &nullStr{&a.CiudadNom},
 		&nullStr{&a.MunicipioNom}, &nullStr{&a.ParroquiaNom}, &nullStr{&a.MaestroNombre})
 	if err != nil {
@@ -189,9 +229,11 @@ func GetAtleta(db *sql.DB, id int64) (*Atleta, error) {
 	// Representante (puede no existir).
 	var r Representante
 	err = db.QueryRow(
-		`SELECT cedula_tipo, cedula_numero, nombres, apellidos, telefono, parentesco
+		`SELECT cedula_tipo, cedula_numero, nombres, apellidos, telefono, parentesco,
+		        lugar_trabajo, direccion_trabajo, email
 		   FROM representante WHERE atleta_id = ?`, id).
-		Scan(&r.CedulaTipo, &r.CedulaNumero, &r.Nombres, &r.Apellidos, &r.Telefono, &r.Parentesco)
+		Scan(&r.CedulaTipo, &r.CedulaNumero, &r.Nombres, &r.Apellidos, &r.Telefono, &r.Parentesco,
+			&r.LugarTrabajo, &r.DireccionTrabajo, &r.Email)
 	if err == nil {
 		a.Representante = &r
 	} else if !errors.Is(err, sql.ErrNoRows) {
@@ -373,13 +415,16 @@ func Reactivar(db *sql.DB, atletaID int64, fecha string, entrenadorID int64) err
 
 func upsertRepresentanteTx(tx *sql.Tx, atletaID int64, r *Representante) error {
 	_, err := tx.Exec(`
-		INSERT INTO representante (atleta_id, cedula_tipo, cedula_numero, nombres, apellidos, telefono, parentesco)
-		VALUES (?,?,?,?,?,?,?)
+		INSERT INTO representante (atleta_id, cedula_tipo, cedula_numero, nombres, apellidos, telefono, parentesco,
+			lugar_trabajo, direccion_trabajo, email)
+		VALUES (?,?,?,?,?,?,?,?,?,?)
 		ON CONFLICT(atleta_id) DO UPDATE SET
 			cedula_tipo=excluded.cedula_tipo, cedula_numero=excluded.cedula_numero,
 			nombres=excluded.nombres, apellidos=excluded.apellidos,
-			telefono=excluded.telefono, parentesco=excluded.parentesco`,
-		atletaID, r.CedulaTipo, r.CedulaNumero, r.Nombres, r.Apellidos, r.Telefono, r.Parentesco)
+			telefono=excluded.telefono, parentesco=excluded.parentesco,
+			lugar_trabajo=excluded.lugar_trabajo, direccion_trabajo=excluded.direccion_trabajo, email=excluded.email`,
+		atletaID, r.CedulaTipo, r.CedulaNumero, r.Nombres, r.Apellidos, r.Telefono, r.Parentesco,
+		r.LugarTrabajo, r.DireccionTrabajo, r.Email)
 	return err
 }
 
@@ -516,6 +561,40 @@ func mapErr(err error) error {
 		return ErrCedulaDuplicada
 	}
 	return err
+}
+
+// boolPtrDB convierte un *bool a su valor en SQLite (0/1) o NULL si es nil.
+func boolPtrDB(p *bool) any {
+	if p == nil {
+		return nil
+	}
+	if *p {
+		return 1
+	}
+	return 0
+}
+
+// nBool escanea un INTEGER posiblemente NULL a un **bool destino (nil = ausente).
+type nBool struct{ dst **bool }
+
+func (n *nBool) Scan(v any) error {
+	if v == nil {
+		*n.dst = nil
+		return nil
+	}
+	var b bool
+	switch t := v.(type) {
+	case int64:
+		b = t != 0
+	case bool:
+		b = t
+	case []byte:
+		b = string(t) == "1" || string(t) == "true"
+	case string:
+		b = t == "1" || t == "true"
+	}
+	*n.dst = &b
+	return nil
 }
 
 // nullStr escanea un TEXT posiblemente NULL a un *string destino.
