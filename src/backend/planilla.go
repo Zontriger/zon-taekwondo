@@ -227,6 +227,10 @@ func (s *Server) construirPlanilla(a *database.Atleta, esAdmin bool) *fpdf.Fpdf 
 	}
 
 	// ============================ ENCABEZADO ============================
+	// Logo de la escuela (arriba a la izquierda, espejo del recuadro de FOTO).
+	if s.registrarLogoAcademia(pdf) {
+		pdf.ImageOptions("logo_academia", LX+2, 12, 28, 28, false, fpdf.ImageOptions{ImageType: "PNG"}, 0, "")
+	}
 	// Texto institucional centrado en toda la página.
 	pdf.SetFont("Arial", "", 9)
 	centerIn(LX, W, 16, "ALCALDIA DEL MUNICIPIO CARRIZAL")
