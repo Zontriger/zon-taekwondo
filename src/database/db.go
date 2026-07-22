@@ -194,9 +194,22 @@ func migrarArchivos(db *sql.DB) error {
 			archivo    TEXT NOT NULL,
 			creado_en  TEXT NOT NULL DEFAULT (datetime('now')))`,
 		`CREATE INDEX IF NOT EXISTS idx_documento_atleta ON documento (atleta_id)`,
+		`CREATE TABLE IF NOT EXISTS documento_maestro (
+			id         INTEGER PRIMARY KEY,
+			maestro_id INTEGER NOT NULL REFERENCES maestro(id) ON DELETE CASCADE,
+			nombre     TEXT NOT NULL,
+			archivo    TEXT NOT NULL,
+			creado_en  TEXT NOT NULL DEFAULT (datetime('now')))`,
+		`CREATE INDEX IF NOT EXISTS idx_documento_maestro ON documento_maestro (maestro_id)`,
 		`INSERT OR IGNORE INTO config (clave, valor) VALUES ('max_upload_mb', '5')`,
 	} {
 		if _, err := db.Exec(stmt); err != nil {
+			return err
+		}
+	}
+	// Foto del entrenador deportivo (maestro), como la del atleta.
+	if !columnExists(db, "maestro", "foto_path") {
+		if _, err := db.Exec(`ALTER TABLE maestro ADD COLUMN foto_path TEXT`); err != nil {
 			return err
 		}
 	}

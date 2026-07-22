@@ -12,51 +12,51 @@ import (
 	"zon-taekwondo/database"
 )
 
-// handleFoto enruta la foto de un atleta: /api/atletas/{id}/foto
-//   GET    → sirve la imagen (menores: solo administrador).
+// handleFoto enruta la foto de una entidad (atleta o entrenador):
+//   GET    → sirve la imagen (atletas menores: solo administrador).
 //   POST   → sube/renueva la foto (multipart, campo "foto"; solo admin).
 //   DELETE → elimina la foto (solo admin).
-func (s *Server) handleFoto(w http.ResponseWriter, r *http.Request, id int64) {
+func (s *Server) handleFoto(w http.ResponseWriter, r *http.Request, ent entArchivos, id int64) {
 	switch r.Method {
 	case http.MethodGet:
-		s.servirFoto(w, r, id)
+		s.servirFoto(w, r, ent, id)
 	case http.MethodPost:
-		s.subirFoto(w, r, id)
+		s.subirFoto(w, r, ent, id)
 	case http.MethodDelete:
-		s.eliminarFoto(w, r, id)
+		s.eliminarFoto(w, r, ent, id)
 	default:
 		writeErr(w, http.StatusMethodNotAllowed, "método no permitido")
 	}
 }
 
-func (s *Server) servirFoto(w http.ResponseWriter, r *http.Request, id int64) {
+func (s *Server) servirFoto(w http.ResponseWriter, r *http.Request, ent entArchivos, id int64) {
 	// Regla #5: la foto de un menor es información sensible (solo admin).
-	if s.esMenorRestringido(w, r, id) {
+	if s.esMenorRestringido(w, r, ent, id) {
 		return
 	}
-	path, err := database.FotoPath(s.db, id)
+	path, err := database.FotoPath(s.db, ent.tabla, id)
 	if errors.Is(err, sql.ErrNoRows) {
-		writeErr(w, http.StatusNotFound, "atleta no encontrado")
+		writeErr(w, http.StatusNotFound, "registro no encontrado")
 		return
 	}
 	if err != nil || path == "" {
-		writeErr(w, http.StatusNotFound, "el atleta no tiene foto")
+		writeErr(w, http.StatusNotFound, "no tiene foto")
 		return
 	}
 	if _, err := os.Stat(path); err != nil {
-		writeErr(w, http.StatusNotFound, "el atleta no tiene foto")
+		writeErr(w, http.StatusNotFound, "no tiene foto")
 		return
 	}
 	w.Header().Set("Cache-Control", "no-cache")
 	http.ServeFile(w, r, path)
 }
 
-func (s *Server) subirFoto(w http.ResponseWriter, r *http.Request, id int64) {
+func (s *Server) subirFoto(w http.ResponseWriter, r *http.Request, ent entArchivos, id int64) {
 	if !s.soloAdmin(w, r) {
 		return
 	}
-	if _, err := database.GetAtleta(s.db, id); errors.Is(err, sql.ErrNoRows) {
-		writeErr(w, http.StatusNotFound, "atleta no encontrado")
+	if !database.ExisteRegistro(s.db, ent.tabla, id) {
+		writeErr(w, http.StatusNotFound, "registro no encontrado")
 		return
 	}
 	maxBytes := int64(database.MaxUploadMB(s.db)) * 1024 * 1024
@@ -88,8 +88,8 @@ func (s *Server) subirFoto(w http.ResponseWriter, r *http.Request, id int64) {
 		return
 	}
 
-	borrarFotosDe(id) // quitar cualquier foto previa (aunque cambie la extensión)
-	destino := filepath.Join(fotosDir(), fmt.Sprintf("%d%s", id, ext))
+	ent.borrarFotosDe(id) // quitar cualquier foto previa (aunque cambie la extensión)
+	destino := filepath.Join(ent.fotosDir(), fmt.Sprintf("%d%s", id, ext))
 	if err := guardarArchivo(destino, file, maxBytes); err != nil {
 		if errors.Is(err, errArchivoGrande) {
 			writeErr(w, http.StatusRequestEntityTooLarge,
@@ -99,34 +99,38 @@ func (s *Server) subirFoto(w http.ResponseWriter, r *http.Request, id int64) {
 		writeErr(w, http.StatusInternalServerError, "no se pudo guardar la imagen")
 		return
 	}
-	if err := database.SetFotoPath(s.db, id, destino); err != nil {
+	if err := database.SetFotoPath(s.db, ent.tabla, id, destino); err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	ses, _ := s.sessions.obtener(r)
-	database.Auditar(s.db, ses.EntrenadorID, "UPDATE", "atleta", id, map[string]string{"foto": "actualizada"})
-	s.hub.Broadcast(Evento{Tipo: "atleta.actualizado", Recurso: "atleta", ID: id, Por: ses.Username})
+	database.Auditar(s.db, ses.EntrenadorID, "UPDATE", ent.tabla, id, map[string]string{"foto": "actualizada"})
+	s.hub.Broadcast(Evento{Tipo: ent.recurso + ".actualizado", Recurso: ent.recurso, ID: id, Por: ses.Username})
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
-func (s *Server) eliminarFoto(w http.ResponseWriter, r *http.Request, id int64) {
+func (s *Server) eliminarFoto(w http.ResponseWriter, r *http.Request, ent entArchivos, id int64) {
 	if !s.soloAdmin(w, r) {
 		return
 	}
-	borrarFotosDe(id)
-	if err := database.SetFotoPath(s.db, id, ""); err != nil {
+	ent.borrarFotosDe(id)
+	if err := database.SetFotoPath(s.db, ent.tabla, id, ""); err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	ses, _ := s.sessions.obtener(r)
-	database.Auditar(s.db, ses.EntrenadorID, "UPDATE", "atleta", id, map[string]string{"foto": "eliminada"})
-	s.hub.Broadcast(Evento{Tipo: "atleta.actualizado", Recurso: "atleta", ID: id, Por: ses.Username})
+	database.Auditar(s.db, ses.EntrenadorID, "UPDATE", ent.tabla, id, map[string]string{"foto": "eliminada"})
+	s.hub.Broadcast(Evento{Tipo: ent.recurso + ".actualizado", Recurso: ent.recurso, ID: id, Por: ses.Username})
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
-// esMenorRestringido escribe 403 y devuelve true si el atleta es menor de edad
-// y el usuario en sesión NO es administrador (protege fotos/documentos sensibles).
-func (s *Server) esMenorRestringido(w http.ResponseWriter, r *http.Request, id int64) bool {
+// esMenorRestringido escribe 403 y devuelve true si la entidad es un atleta
+// menor de edad y el usuario en sesión NO es administrador (protege fotos y
+// documentos sensibles de menores). Los entrenadores no tienen restricción.
+func (s *Server) esMenorRestringido(w http.ResponseWriter, r *http.Request, ent entArchivos, id int64) bool {
+	if ent.tabla != "atleta" {
+		return false
+	}
 	ses, _ := s.sessions.obtener(r)
 	if ses.EsAdmin {
 		return false

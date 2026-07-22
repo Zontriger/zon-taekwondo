@@ -17,9 +17,10 @@ import (
 // Tablas permitidas para exportar/importar por CSV (lista blanca).
 var tablasRespaldo = map[string]bool{
 	"estado": true, "ciudad": true, "municipio": true, "parroquia": true,
-	"cinturon": true, "escuela": true, "entrenador": true,
+	"cinturon": true, "escuela": true, "entrenador": true, "maestro": true,
 	"atleta": true, "representante": true, "atleta_telefono_contacto": true,
 	"historial_cinturon": true, "periodo_actividad": true,
+	"documento": true, "documento_maestro": true,
 }
 
 // handleBackup enruta las operaciones de respaldo (todas solo admin).

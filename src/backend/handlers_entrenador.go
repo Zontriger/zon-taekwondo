@@ -37,11 +37,21 @@ func (s *Server) handleEntrenadores(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// PUT/DELETE /api/entrenadores/{id}
+// /api/entrenadores/{id}[/foto | /documentos...]
+// PUT/DELETE del registro (solo admin); foto y documentos reutilizan los mismos
+// handlers que el atleta (lectura para todos; escritura solo admin).
 func (s *Server) handleEntrenadorItem(w http.ResponseWriter, r *http.Request) {
-	id, _, ok := idFromPath(r.URL.Path, "/api/entrenadores/")
+	id, sub, ok := idFromPath(r.URL.Path, "/api/entrenadores/")
 	if !ok {
 		writeErr(w, http.StatusBadRequest, "id inválido")
+		return
+	}
+	if sub == "foto" {
+		s.handleFoto(w, r, entMaestro, id)
+		return
+	}
+	if strings.HasPrefix(sub, "documentos") {
+		s.handleDocumentos(w, r, entMaestro, id, sub)
 		return
 	}
 	if !s.soloAdmin(w, r) {

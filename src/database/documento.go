@@ -2,16 +2,35 @@ package database
 
 import (
 	"database/sql"
+	"fmt"
 	"strings"
 	"unicode"
 )
 
-// Documento es un archivo PDF asociado a un atleta (partida de nacimiento,
-// cédula, certificados de cinturón, etc.). El archivo vive en disco bajo
-// data/docs/{atleta_id}/; en la base solo se guarda su ruta y nombre visible.
+// Los documentos y fotos existen para dos entidades: atletas y entrenadores
+// (maestros). Ambas comparten la misma estructura de tabla de documentos y una
+// columna foto_path, así que las operaciones se parametrizan con DocTabla /
+// nombre de tabla (siempre desde esta lista blanca, nunca del usuario).
+
+// DocTabla identifica la tabla de documentos de una entidad y su columna dueño.
+type DocTabla struct {
+	Tabla string // "documento" | "documento_maestro"
+	Col   string // "atleta_id" | "maestro_id"
+}
+
+var (
+	DocsAtleta  = DocTabla{"documento", "atleta_id"}
+	DocsMaestro = DocTabla{"documento_maestro", "maestro_id"}
+)
+
+// tablasConFoto es la lista blanca de tablas con columna foto_path.
+var tablasConFoto = map[string]bool{"atleta": true, "maestro": true}
+
+// Documento es un archivo (PDF o imagen) asociado a un atleta o entrenador.
+// El archivo vive en disco bajo data/; en la base solo se guarda su ruta.
 type Documento struct {
 	ID       int64  `json:"id"`
-	AtletaID int64  `json:"atleta_id"`
+	OwnerID  int64  `json:"-"` // id del atleta o maestro dueño
 	Nombre   string `json:"nombre"`
 	Archivo  string `json:"-"` // ruta relativa en disco (no se expone al cliente)
 	CreadoEn string `json:"creado_en"`
@@ -20,11 +39,11 @@ type Documento struct {
 	Existe bool   `json:"existe"` // si el archivo sigue en disco
 }
 
-// ListDocumentos devuelve los documentos de un atleta (más reciente primero).
-func ListDocumentos(db *sql.DB, atletaID int64) ([]Documento, error) {
-	rows, err := db.Query(
-		`SELECT id, atleta_id, nombre, archivo, creado_en
-		   FROM documento WHERE atleta_id = ? ORDER BY creado_en DESC, id DESC`, atletaID)
+// ListDocumentos devuelve los documentos del dueño (más reciente primero).
+func ListDocumentos(db *sql.DB, dt DocTabla, ownerID int64) ([]Documento, error) {
+	rows, err := db.Query(fmt.Sprintf(
+		`SELECT id, %s, nombre, archivo, creado_en
+		   FROM %s WHERE %s = ? ORDER BY creado_en DESC, id DESC`, dt.Col, dt.Tabla, dt.Col), ownerID)
 	if err != nil {
 		return nil, err
 	}
@@ -32,7 +51,7 @@ func ListDocumentos(db *sql.DB, atletaID int64) ([]Documento, error) {
 	out := []Documento{}
 	for rows.Next() {
 		var d Documento
-		if err := rows.Scan(&d.ID, &d.AtletaID, &d.Nombre, &d.Archivo, &d.CreadoEn); err != nil {
+		if err := rows.Scan(&d.ID, &d.OwnerID, &d.Nombre, &d.Archivo, &d.CreadoEn); err != nil {
 			return nil, err
 		}
 		out = append(out, d)
@@ -40,13 +59,13 @@ func ListDocumentos(db *sql.DB, atletaID int64) ([]Documento, error) {
 	return out, rows.Err()
 }
 
-// GetDocumento devuelve un documento por id verificando que pertenezca al atleta.
-func GetDocumento(db *sql.DB, atletaID, docID int64) (*Documento, error) {
+// GetDocumento devuelve un documento por id verificando que pertenezca al dueño.
+func GetDocumento(db *sql.DB, dt DocTabla, ownerID, docID int64) (*Documento, error) {
 	var d Documento
-	err := db.QueryRow(
-		`SELECT id, atleta_id, nombre, archivo, creado_en
-		   FROM documento WHERE id = ? AND atleta_id = ?`, docID, atletaID).
-		Scan(&d.ID, &d.AtletaID, &d.Nombre, &d.Archivo, &d.CreadoEn)
+	err := db.QueryRow(fmt.Sprintf(
+		`SELECT id, %s, nombre, archivo, creado_en
+		   FROM %s WHERE id = ? AND %s = ?`, dt.Col, dt.Tabla, dt.Col), docID, ownerID).
+		Scan(&d.ID, &d.OwnerID, &d.Nombre, &d.Archivo, &d.CreadoEn)
 	if err != nil {
 		return nil, err
 	}
@@ -54,10 +73,10 @@ func GetDocumento(db *sql.DB, atletaID, docID int64) (*Documento, error) {
 }
 
 // CrearDocumento inserta un documento y devuelve su id.
-func CrearDocumento(db *sql.DB, atletaID int64, nombre, archivo string) (int64, error) {
-	res, err := db.Exec(
-		`INSERT INTO documento (atleta_id, nombre, archivo) VALUES (?, ?, ?)`,
-		atletaID, nombre, archivo)
+func CrearDocumento(db *sql.DB, dt DocTabla, ownerID int64, nombre, archivo string) (int64, error) {
+	res, err := db.Exec(fmt.Sprintf(
+		`INSERT INTO %s (%s, nombre, archivo) VALUES (?, ?, ?)`, dt.Tabla, dt.Col),
+		ownerID, nombre, archivo)
 	if err != nil {
 		return 0, err
 	}
@@ -65,41 +84,56 @@ func CrearDocumento(db *sql.DB, atletaID int64, nombre, archivo string) (int64, 
 }
 
 // SetDocumentoArchivo fija la ruta en disco del documento (tras guardarlo).
-func SetDocumentoArchivo(db *sql.DB, docID int64, archivo string) error {
-	_, err := db.Exec(`UPDATE documento SET archivo = ? WHERE id = ?`, archivo, docID)
+func SetDocumentoArchivo(db *sql.DB, dt DocTabla, docID int64, archivo string) error {
+	_, err := db.Exec(fmt.Sprintf(`UPDATE %s SET archivo = ? WHERE id = ?`, dt.Tabla), archivo, docID)
 	return err
 }
 
 // EliminarDocumento borra el registro y devuelve la ruta del archivo a eliminar.
-func EliminarDocumento(db *sql.DB, atletaID, docID int64) (string, error) {
-	d, err := GetDocumento(db, atletaID, docID)
+func EliminarDocumento(db *sql.DB, dt DocTabla, ownerID, docID int64) (string, error) {
+	d, err := GetDocumento(db, dt, ownerID, docID)
 	if err != nil {
 		return "", err
 	}
-	if _, err := db.Exec(`DELETE FROM documento WHERE id = ?`, docID); err != nil {
+	if _, err := db.Exec(fmt.Sprintf(`DELETE FROM %s WHERE id = ?`, dt.Tabla), docID); err != nil {
 		return "", err
 	}
 	return d.Archivo, nil
 }
 
-// SetFotoPath actualiza la ruta de la foto del atleta (o la limpia con "").
-func SetFotoPath(db *sql.DB, atletaID int64, path string) error {
+// SetFotoPath actualiza la ruta de la foto del registro (o la limpia con "").
+func SetFotoPath(db *sql.DB, tabla string, id int64, path string) error {
+	if !tablasConFoto[tabla] {
+		return fmt.Errorf("tabla sin foto: %s", tabla)
+	}
 	var p any
 	if path != "" {
 		p = path
 	}
-	_, err := db.Exec(`UPDATE atleta SET foto_path = ? WHERE id = ?`, p, atletaID)
+	_, err := db.Exec(fmt.Sprintf(`UPDATE %s SET foto_path = ? WHERE id = ?`, tabla), p, id)
 	return err
 }
 
-// FotoPath devuelve la ruta de la foto del atleta ("" si no tiene).
-func FotoPath(db *sql.DB, atletaID int64) (string, error) {
+// FotoPath devuelve la ruta de la foto del registro ("" si no tiene).
+func FotoPath(db *sql.DB, tabla string, id int64) (string, error) {
+	if !tablasConFoto[tabla] {
+		return "", fmt.Errorf("tabla sin foto: %s", tabla)
+	}
 	var p sql.NullString
-	err := db.QueryRow(`SELECT foto_path FROM atleta WHERE id = ?`, atletaID).Scan(&p)
+	err := db.QueryRow(fmt.Sprintf(`SELECT foto_path FROM %s WHERE id = ?`, tabla), id).Scan(&p)
 	if err != nil {
 		return "", err
 	}
 	return p.String, nil
+}
+
+// ExisteRegistro indica si existe un registro con ese id en la tabla dada.
+func ExisteRegistro(db *sql.DB, tabla string, id int64) bool {
+	if !tablasConFoto[tabla] {
+		return false
+	}
+	var uno int
+	return db.QueryRow(fmt.Sprintf(`SELECT 1 FROM %s WHERE id = ?`, tabla), id).Scan(&uno) == nil
 }
 
 // EsMenorDeEdad indica si el atleta es menor de 18 años (para restringir el
@@ -112,19 +146,22 @@ func EsMenorDeEdad(db *sql.DB, atletaID int64) (bool, error) {
 	return edad(nac) < 18, nil
 }
 
-// NombreArchivoAtleta devuelve un nombre de archivo seguro basado en el atleta
-// (apellidos_nombres) para nombrar descargas .zip de sus documentos.
-func NombreArchivoAtleta(db *sql.DB, atletaID int64) string {
+// NombreArchivoDe devuelve un nombre de archivo seguro (apellidos_nombres) del
+// atleta o maestro, para nombrar descargas (planillas, .zip de documentos).
+func NombreArchivoDe(db *sql.DB, tabla string, id int64) string {
+	if !tablasConFoto[tabla] {
+		return "registro"
+	}
 	var nombres, apellidos string
-	if err := db.QueryRow(`SELECT nombres, apellidos FROM atleta WHERE id = ?`, atletaID).
+	if err := db.QueryRow(fmt.Sprintf(`SELECT nombres, apellidos FROM %s WHERE id = ?`, tabla), id).
 		Scan(&nombres, &apellidos); err != nil {
-		return "atleta"
+		return "registro"
 	}
 	return slug(apellidos + "_" + nombres)
 }
 
-// slug normaliza un texto a un nombre de archivo seguro: minúsculas, sin
-// espacios ni caracteres problemáticos (deja letras, dígitos, '_' y '-').
+// slug normaliza un texto a un nombre de archivo seguro: minúsculas, conserva
+// letras (incluidas ñ y tildes), dígitos, '_' y '-'.
 func slug(s string) string {
 	s = strings.TrimSpace(strings.ToLower(s))
 	var b strings.Builder
@@ -138,7 +175,7 @@ func slug(s string) string {
 	}
 	out := strings.Trim(b.String(), "_")
 	if out == "" {
-		return "atleta"
+		return "registro"
 	}
 	return out
 }

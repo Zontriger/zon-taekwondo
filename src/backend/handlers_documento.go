@@ -15,10 +15,10 @@ import (
 	"zon-taekwondo/database"
 )
 
-// handleDocumentos enruta el repositorio de documentos de un atleta.
-// sub llega ya sin el id del atleta: "documentos", "documentos/{docId}" o
+// handleDocumentos enruta el repositorio de documentos de una entidad (atleta o
+// entrenador). sub llega ya sin el id: "documentos", "documentos/{docId}" o
 // "documentos/zip".
-func (s *Server) handleDocumentos(w http.ResponseWriter, r *http.Request, atletaID int64, sub string) {
+func (s *Server) handleDocumentos(w http.ResponseWriter, r *http.Request, ent entArchivos, ownerID int64, sub string) {
 	rest := strings.TrimPrefix(sub, "documentos")
 	rest = strings.Trim(rest, "/")
 
@@ -26,14 +26,14 @@ func (s *Server) handleDocumentos(w http.ResponseWriter, r *http.Request, atleta
 	case rest == "":
 		switch r.Method {
 		case http.MethodGet:
-			s.listarDocumentos(w, atletaID)
+			s.listarDocumentos(w, ent, ownerID)
 		case http.MethodPost:
-			s.subirDocumento(w, r, atletaID)
+			s.subirDocumento(w, r, ent, ownerID)
 		default:
 			writeErr(w, http.StatusMethodNotAllowed, "método no permitido")
 		}
 	case rest == "zip":
-		s.descargarDocumentosZip(w, r, atletaID)
+		s.descargarDocumentosZip(w, r, ent, ownerID)
 	default:
 		docID, err := strconv.ParseInt(rest, 10, 64)
 		if err != nil {
@@ -42,17 +42,17 @@ func (s *Server) handleDocumentos(w http.ResponseWriter, r *http.Request, atleta
 		}
 		switch r.Method {
 		case http.MethodGet:
-			s.servirDocumento(w, r, atletaID, docID)
+			s.servirDocumento(w, r, ent, ownerID, docID)
 		case http.MethodDelete:
-			s.eliminarDocumento(w, r, atletaID, docID)
+			s.eliminarDocumento(w, r, ent, ownerID, docID)
 		default:
 			writeErr(w, http.StatusMethodNotAllowed, "método no permitido")
 		}
 	}
 }
 
-func (s *Server) listarDocumentos(w http.ResponseWriter, atletaID int64) {
-	docs, err := database.ListDocumentos(s.db, atletaID)
+func (s *Server) listarDocumentos(w http.ResponseWriter, ent entArchivos, ownerID int64) {
+	docs, err := database.ListDocumentos(s.db, ent.docs, ownerID)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
@@ -66,12 +66,12 @@ func (s *Server) listarDocumentos(w http.ResponseWriter, atletaID int64) {
 	writeJSON(w, http.StatusOK, docs)
 }
 
-func (s *Server) subirDocumento(w http.ResponseWriter, r *http.Request, atletaID int64) {
+func (s *Server) subirDocumento(w http.ResponseWriter, r *http.Request, ent entArchivos, ownerID int64) {
 	if !s.soloAdmin(w, r) {
 		return
 	}
-	if _, err := database.GetAtleta(s.db, atletaID); errors.Is(err, sql.ErrNoRows) {
-		writeErr(w, http.StatusNotFound, "atleta no encontrado")
+	if !database.ExisteRegistro(s.db, ent.tabla, ownerID) {
+		writeErr(w, http.StatusNotFound, "registro no encontrado")
 		return
 	}
 	maxBytes := int64(database.MaxUploadMB(s.db)) * 1024 * 1024
@@ -89,7 +89,7 @@ func (s *Server) subirDocumento(w http.ResponseWriter, r *http.Request, atletaID
 	}
 	file, _, err := r.FormFile("archivo")
 	if err != nil {
-		writeErr(w, http.StatusBadRequest, "adjunte un PDF en el campo 'archivo'")
+		writeErr(w, http.StatusBadRequest, "adjunte un archivo en el campo 'archivo'")
 		return
 	}
 	defer file.Close()
@@ -107,14 +107,14 @@ func (s *Server) subirDocumento(w http.ResponseWriter, r *http.Request, atletaID
 	}
 
 	// Insertar primero para obtener el id y nombrar el archivo con él.
-	docID, err := database.CrearDocumento(s.db, atletaID, nombre, "")
+	docID, err := database.CrearDocumento(s.db, ent.docs, ownerID, nombre, "")
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	destino := filepath.Join(docsDir(atletaID), fmt.Sprintf("%d%s", docID, ext))
+	destino := filepath.Join(ent.docsDir(ownerID), fmt.Sprintf("%d%s", docID, ext))
 	if err := guardarArchivo(destino, file, maxBytes); err != nil {
-		database.EliminarDocumento(s.db, atletaID, docID) // revertir el registro
+		database.EliminarDocumento(s.db, ent.docs, ownerID, docID) // revertir el registro
 		if errors.Is(err, errArchivoGrande) {
 			writeErr(w, http.StatusRequestEntityTooLarge,
 				fmt.Sprintf("el documento supera el máximo de %d MB", database.MaxUploadMB(s.db)))
@@ -123,22 +123,22 @@ func (s *Server) subirDocumento(w http.ResponseWriter, r *http.Request, atletaID
 		writeErr(w, http.StatusInternalServerError, "no se pudo guardar el documento")
 		return
 	}
-	if err := database.SetDocumentoArchivo(s.db, docID, destino); err != nil {
+	if err := database.SetDocumentoArchivo(s.db, ent.docs, docID, destino); err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	ses, _ := s.sessions.obtener(r)
-	database.Auditar(s.db, ses.EntrenadorID, "INSERT", "documento", docID, map[string]string{"nombre": nombre})
-	s.hub.Broadcast(Evento{Tipo: "atleta.actualizado", Recurso: "atleta", ID: atletaID, Por: ses.Username})
+	database.Auditar(s.db, ses.EntrenadorID, "INSERT", ent.docs.Tabla, docID, map[string]string{"nombre": nombre})
+	s.hub.Broadcast(Evento{Tipo: ent.recurso + ".actualizado", Recurso: ent.recurso, ID: ownerID, Por: ses.Username})
 	writeJSON(w, http.StatusCreated, map[string]any{"id": docID, "nombre": nombre})
 }
 
-func (s *Server) servirDocumento(w http.ResponseWriter, r *http.Request, atletaID, docID int64) {
-	// Regla #5: los documentos de un menor son sensibles (solo admin).
-	if s.esMenorRestringido(w, r, atletaID) {
+func (s *Server) servirDocumento(w http.ResponseWriter, r *http.Request, ent entArchivos, ownerID, docID int64) {
+	// Regla #5: los documentos de un atleta menor son sensibles (solo admin).
+	if s.esMenorRestringido(w, r, ent, ownerID) {
 		return
 	}
-	d, err := database.GetDocumento(s.db, atletaID, docID)
+	d, err := database.GetDocumento(s.db, ent.docs, ownerID, docID)
 	if errors.Is(err, sql.ErrNoRows) {
 		writeErr(w, http.StatusNotFound, "documento no encontrado")
 		return
@@ -159,15 +159,15 @@ func (s *Server) servirDocumento(w http.ResponseWriter, r *http.Request, atletaI
 	if r.URL.Query().Get("download") == "1" {
 		disp = "attachment"
 	}
-	setDisposition(w, disp, database.NombreArchivoAtleta(s.db, atletaID)+"_"+sanitizar(d.Nombre)+strings.ToLower(filepath.Ext(d.Archivo)))
+	setDisposition(w, disp, database.NombreArchivoDe(s.db, ent.tabla, ownerID)+"_"+sanitizar(d.Nombre)+strings.ToLower(filepath.Ext(d.Archivo)))
 	io.Copy(w, f)
 }
 
-func (s *Server) eliminarDocumento(w http.ResponseWriter, r *http.Request, atletaID, docID int64) {
+func (s *Server) eliminarDocumento(w http.ResponseWriter, r *http.Request, ent entArchivos, ownerID, docID int64) {
 	if !s.soloAdmin(w, r) {
 		return
 	}
-	archivo, err := database.EliminarDocumento(s.db, atletaID, docID)
+	archivo, err := database.EliminarDocumento(s.db, ent.docs, ownerID, docID)
 	if errors.Is(err, sql.ErrNoRows) {
 		writeErr(w, http.StatusNotFound, "documento no encontrado")
 		return
@@ -180,30 +180,30 @@ func (s *Server) eliminarDocumento(w http.ResponseWriter, r *http.Request, atlet
 		os.Remove(archivo)
 	}
 	ses, _ := s.sessions.obtener(r)
-	database.Auditar(s.db, ses.EntrenadorID, "DELETE", "documento", docID, nil)
-	s.hub.Broadcast(Evento{Tipo: "atleta.actualizado", Recurso: "atleta", ID: atletaID, Por: ses.Username})
+	database.Auditar(s.db, ses.EntrenadorID, "DELETE", ent.docs.Tabla, docID, nil)
+	s.hub.Broadcast(Evento{Tipo: ent.recurso + ".actualizado", Recurso: ent.recurso, ID: ownerID, Por: ses.Username})
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 }
 
-// descargarDocumentosZip agrupa varios documentos del atleta en un .zip. Recibe
-// los ids en el parámetro de consulta 'ids' (coma-separados); sin ids, incluye
-// todos. Nombre del archivo: {nombre_del_atleta}_documentos.zip.
-func (s *Server) descargarDocumentosZip(w http.ResponseWriter, r *http.Request, atletaID int64) {
+// descargarDocumentosZip agrupa varios documentos de la entidad en un .zip.
+// Recibe los ids en 'ids' (coma-separados); sin ids, incluye todos. Nombre:
+// {apellidos_nombres}_documentos.zip.
+func (s *Server) descargarDocumentosZip(w http.ResponseWriter, r *http.Request, ent entArchivos, ownerID int64) {
 	if r.Method != http.MethodGet {
 		writeErr(w, http.StatusMethodNotAllowed, "método no permitido")
 		return
 	}
 	// Descarga de documentos de un menor: solo administrador.
-	if s.esMenorRestringido(w, r, atletaID) {
+	if s.esMenorRestringido(w, r, ent, ownerID) {
 		return
 	}
-	docs, err := database.ListDocumentos(s.db, atletaID)
+	docs, err := database.ListDocumentos(s.db, ent.docs, ownerID)
 	if err != nil {
 		writeErr(w, http.StatusInternalServerError, err.Error())
 		return
 	}
 	sel := idsSeleccionados(r.URL.Query().Get("ids"))
-	base := database.NombreArchivoAtleta(s.db, atletaID)
+	base := database.NombreArchivoDe(s.db, ent.tabla, ownerID)
 
 	w.Header().Set("Content-Type", "application/zip")
 	setAttachment(w, base+"_documentos.zip")

@@ -6,16 +6,41 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"zon-taekwondo/database"
 )
 
 // Raíz del almacenamiento de archivos subidos, junto al ejecutable. Se respalda
 // completa (junto con app.db) en el "respaldo completo".
 const dataDir = "data"
 
-func fotosDir() string       { return filepath.Join(dataDir, "fotos") }
-func docsDir(id int64) string { return filepath.Join(dataDir, "docs", fmt.Sprintf("%d", id)) }
+// entArchivos describe dónde viven la foto y los documentos de una entidad
+// (atleta o entrenador/maestro), para que los mismos handlers sirvan a ambas.
+type entArchivos struct {
+	tabla   string             // tabla con columna foto_path (y para auditoría)
+	docs    database.DocTabla  // tabla de documentos de la entidad
+	fotoSub string             // subcarpeta de data/ para fotos
+	docSub  string             // subcarpeta de data/ para documentos
+	recurso string             // recurso difundido por WebSocket al cambiar
+}
 
-// extensionesFoto permitidas para la foto del atleta.
+var (
+	entAtleta  = entArchivos{tabla: "atleta", docs: database.DocsAtleta, fotoSub: "fotos", docSub: "docs", recurso: "atleta"}
+	entMaestro = entArchivos{tabla: "maestro", docs: database.DocsMaestro, fotoSub: "fotos_entrenadores", docSub: "docs_entrenadores", recurso: "maestro"}
+)
+
+func (e entArchivos) fotosDir() string        { return filepath.Join(dataDir, e.fotoSub) }
+func (e entArchivos) docsDir(id int64) string { return filepath.Join(dataDir, e.docSub, fmt.Sprintf("%d", id)) }
+
+// borrarFotosDe elimina cualquier archivo de foto previo del registro (sin
+// importar su extensión) antes de guardar una nueva o al eliminarla.
+func (e entArchivos) borrarFotosDe(id int64) {
+	for ext := range extensionesFoto {
+		os.Remove(filepath.Join(e.fotosDir(), fmt.Sprintf("%d%s", id, ext)))
+	}
+}
+
+// extensionesFoto permitidas para la foto (atleta o entrenador).
 var extensionesFoto = map[string]bool{".jpg": true, ".jpeg": true, ".png": true}
 
 // guardarArchivo escribe el contenido de r en destino, creando la carpeta si
@@ -117,10 +142,3 @@ func extFoto(nombre string) string {
 	return ext
 }
 
-// borrarFotosDe elimina cualquier archivo de foto previo del atleta (sin
-// importar su extensión) antes de guardar una nueva o al eliminarla.
-func borrarFotosDe(id int64) {
-	for ext := range extensionesFoto {
-		os.Remove(filepath.Join(fotosDir(), fmt.Sprintf("%d%s", id, ext)))
-	}
-}

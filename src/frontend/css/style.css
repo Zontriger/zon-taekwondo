@@ -461,6 +461,10 @@ body.rol-consultor .admin-only { display: none !important; }
 .help-list li { margin: .2rem 0; }
 .help-step { color: var(--fg); font-size: .88rem; font-weight: 700; margin: .7rem 0 .2rem; }
 .help-card code { background: var(--surface-2); border: 1px solid var(--line); border-radius: 5px; padding: .05rem .35rem; font-size: .85em; color: var(--primary); overflow-wrap: anywhere; word-break: break-word; }
+.help-github { display: flex; align-items: center; gap: .45rem; }
+.help-github .ico { width: 18px; height: 18px; color: var(--fg); flex-shrink: 0; }
+.help-github a { color: var(--primary); font-weight: 600; text-decoration: none; overflow-wrap: anywhere; }
+.help-github a:hover { text-decoration: underline; }
 .row-gap { display: flex; flex-wrap: wrap; gap: .6rem; align-items: center; }
 .acciones { display: flex; gap: .35rem; justify-content: flex-end; }
 .acciones .btn { padding: .3rem .5rem; }

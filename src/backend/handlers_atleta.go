@@ -108,10 +108,10 @@ func (s *Server) handleAtletaItem(w http.ResponseWriter, r *http.Request) {
 	case "planilla.pdf":
 		s.handlePlanillaAtleta(w, r, id)
 	case "foto":
-		s.handleFoto(w, r, id)
+		s.handleFoto(w, r, entAtleta, id)
 	default:
 		if strings.HasPrefix(sub, "documentos") {
-			s.handleDocumentos(w, r, id, sub)
+			s.handleDocumentos(w, r, entAtleta, id, sub)
 			return
 		}
 		writeErr(w, http.StatusNotFound, "recurso no encontrado")

@@ -98,7 +98,7 @@ func (s *Server) handlePlanillaAtleta(w http.ResponseWriter, r *http.Request, id
 	ses, _ := s.sessions.obtener(r)
 	pdf := s.construirPlanilla(a, ses.EsAdmin)
 	w.Header().Set("Content-Type", "application/pdf")
-	setAttachment(w, "planilla-"+database.NombreArchivoAtleta(s.db, id)+".pdf")
+	setAttachment(w, "planilla-"+database.NombreArchivoDe(s.db, "atleta", id)+".pdf")
 	if err := pdf.Output(w); err != nil {
 		fmt.Printf("[planilla] error generando PDF: %v\n", err)
 	}

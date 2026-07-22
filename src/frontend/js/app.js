@@ -24,8 +24,8 @@ const state = {
   selAll: false,         // "todos los del filtro actual" (aunque no estén en pantalla)
   lastIdx: null,         // última fila marcada (para selección con Shift)
   pageItems: [],         // atletas de la página visible
-  // Documentos del atleta abierto en la ficha.
-  docAtletaId: null,
+  // Documentos de la ficha abierta (atleta o entrenador): URL base de la API.
+  docBase: null,
   docsData: [],
   docSel: new Set(),
 };
@@ -49,6 +49,7 @@ const TABLA_LABEL = {
   historial_cinturon: 'Historial de cinturones', periodo_actividad: 'Periodos de actividad',
   escuela: 'Escuelas', estado: 'Estados', ciudad: 'Ciudades', municipio: 'Municipios',
   parroquia: 'Parroquias', cinturon: 'Cinturones', entrenador: 'Usuarios del sistema',
+  maestro: 'Entrenadores', documento: 'Documentos de atletas', documento_maestro: 'Documentos de entrenadores',
 };
 const TABLAS_RESPALDO = Object.keys(TABLA_LABEL);
 // Etiqueta singular para el título del modal de datos maestros.
@@ -361,7 +362,7 @@ function DataTable(opts) {
   const mount = typeof opts.mount === 'string' ? $(opts.mount) : opts.mount;
   const cols = opts.columns;
   const selectable = opts.selectable !== false;
-  const clickable = opts.onEdit || opts.onDelete || opts.onVer; // clic en fila → modal detalle
+  const clickable = opts.onOpen || opts.onEdit || opts.onDelete || opts.onVer; // clic en fila → modal detalle
   const canBulk = selectable && opts.delUrl && opts.reload;
   const st = { data: [], search: '', colf: {}, offset: 0, pageSize: opts.pageSize || 15, showFilters: false, sel: new Set(), selAll: false, lastIdx: null, pageRows: [] };
   mount.className = 'dt';
@@ -437,7 +438,12 @@ function DataTable(opts) {
     if (vr && opts.onVer) return opts.onVer(porId(st.data, vr.dataset.ver));
     if (e.target.closest('button')) return;
     const tr = e.target.closest('tr[data-id]');
-    if (tr && clickable) abrirRegistro(porId(st.data, tr.dataset.id), opts);
+    if (tr && clickable) {
+      const row = porId(st.data, tr.dataset.id);
+      // onOpen permite una ficha de detalle propia (p. ej. entrenadores con
+      // foto y documentos); si no, se usa la modal genérica de registro.
+      if (opts.onOpen) opts.onOpen(row); else abrirRegistro(row, opts);
+    }
   });
 
   function filtered() {
@@ -1095,18 +1101,7 @@ async function verDetalle(id) {
   $('#det-body').innerHTML = `
     <div class="det-head">
       <div class="det-head-main">
-        <div class="foto-panel">
-          <div class="foto-box" id="foto-box"><img id="foto-img" alt="Foto del atleta">
-            <button type="button" class="foto-expand" id="foto-expand" title="Ver foto en grande" aria-label="Ver foto en grande">
-              <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
-            </button>
-          </div>
-          ${isAdmin() ? `<div class="foto-actions">
-            <button class="btn btn-sm" id="btn-foto-set" title="Subir o renovar la foto">Subir foto</button>
-            <button class="btn btn-sm hidden" id="btn-foto-ajustar" title="Reencuadrar la foto actual">Ajustar</button>
-            <button class="btn btn-sm hidden" id="btn-foto-del" title="Quitar la foto">Quitar</button>
-          </div>` : ''}
-        </div>
+        ${fotoPanelHTML('Foto del atleta')}
         <div class="det-head-info"><h3 style="margin:0">${esc(a.apellidos)}, ${esc(a.nombres)}</h3>
           <div>${chipCinturon(a.cinturon_color, a.cinturon_dan)} <span class="chip state-${a.estado}">${STATE_DOT} ${a.estado}</span></div></div>
       </div>
@@ -1167,20 +1162,7 @@ async function verDetalle(id) {
     </div>
 
     <div class="det-panel hidden" data-panel="docs">
-      <div id="fs-docs">
-        <div class="docs-toolbar">
-          ${isAdmin() ? `<button class="btn btn-sm btn-primary" id="doc-add">${ICON.download}<span>Subir documento</span></button>` : ''}
-          <div class="docs-selbar hidden" id="docs-selbar">
-            <span class="bulk-count"><b id="docs-seln">0</b> sel.</span>
-            <button class="btn btn-sm" id="doc-open" title="Abrir en pestañas nuevas">Abrir</button>
-            <button class="btn btn-sm" id="doc-dl" title="Descargar (varios = .zip)">Descargar</button>
-            ${isAdmin() ? `<button class="btn btn-sm btn-danger" id="doc-del">Eliminar</button>` : ''}
-            <button class="btn btn-sm btn-ghost" id="doc-desel">Quitar selección</button>
-          </div>
-        </div>
-        <div class="docs-grid" id="docs-grid"></div>
-        <div class="docs-empty hidden" id="docs-empty">No hay documentos. ${isAdmin() ? 'Use “Subir documento” para agregar partidas, cédulas o certificados en PDF.' : ''}</div>
-      </div>
+      ${docsFieldsetHTML()}
     </div>
     ${isAdmin() ? `<div class="det-actions">
       <button class="btn btn-sm" id="d-editar">${ICON.edit}<span>Editar</span></button>
@@ -1188,26 +1170,27 @@ async function verDetalle(id) {
       ${a.estado === 'activo' ? `<button class="btn btn-sm" id="d-retirar">${ICON.retire}<span>Retirar</span></button>` : `<button class="btn btn-sm" id="d-reactivar">${ICON.reactivate}<span>Reactivar</span></button>`}
       <button class="btn btn-sm btn-danger" id="d-eliminar">${ICON.trash}<span>Eliminar</span></button>
     </div>` : ''}`;
-  $('#d-planilla').onclick = () => descargar('/api/atletas/' + a.id + '/planilla.pdf');
+  const base = '/api/atletas/' + a.id;
+  $('#d-planilla').onclick = () => descargar(base + '/planilla.pdf');
   // Pestañas del detalle.
   $$('#det-tabs .det-tab').forEach(t => t.addEventListener('click', () => {
     $$('#det-tabs .det-tab').forEach(x => x.classList.toggle('active', x === t));
     $$('#det-body .det-panel').forEach(p => p.classList.toggle('hidden', p.dataset.panel !== t.dataset.tab));
   }));
-  $('#foto-expand').onclick = () => abrirLightboxFoto(a.id);
+  $('#foto-expand').onclick = () => abrirLightboxFoto(base);
   if (isAdmin()) {
     $('#d-editar').onclick = () => { retornoFicha = a.id; cerrar(modalDetalle); abrirForm(a); };
     $('#d-cinturon').onclick = () => cambiarCinturon(a);
     if ($('#d-retirar')) $('#d-retirar').onclick = () => retirar(a);
     if ($('#d-reactivar')) $('#d-reactivar').onclick = () => reactivar(a);
     $('#d-eliminar').onclick = () => eliminar(a);
-    $('#btn-foto-set').onclick = () => pedirFoto(a.id);
-    $('#btn-foto-ajustar').onclick = () => ajustarFotoActual(a.id);
-    $('#btn-foto-del').onclick = () => quitarFoto(a);
-    $('#doc-add').onclick = () => abrirSubirDocumento(a.id);
+    $('#btn-foto-set').onclick = () => pedirFoto(base);
+    $('#btn-foto-ajustar').onclick = () => ajustarFotoActual(base);
+    $('#btn-foto-del').onclick = () => quitarFoto(base);
+    $('#doc-add').onclick = () => abrirSubirDocumento(base);
   }
-  cargarFotoDetalle(a.id);
-  initDocsUI(a);
+  cargarFotoDetalle(base);
+  initDocsUI(base);
   abrir(modalDetalle);
 }
 // saludHTML muestra los datos de salud/planilla (tipo de sangre, físicos, médicos).
@@ -1231,25 +1214,105 @@ function saludHTML(a) {
     ${kv('Emergencia: llamar a', a.med_emergencia || '—')}
   </div></fieldset>`;
 }
-// abrirLightboxFoto muestra la foto del atleta en grande (overlay), con cierre.
-function abrirLightboxFoto(id) {
+// fotoPanelHTML: panel de foto reutilizable (mismos ids para atleta/entrenador;
+// solo hay una ficha abierta a la vez, así que no colisionan).
+function fotoPanelHTML(altText) {
+  return `<div class="foto-panel">
+    <div class="foto-box" id="foto-box"><img id="foto-img" alt="${esc(altText)}">
+      <button type="button" class="foto-expand" id="foto-expand" title="Ver foto en grande" aria-label="Ver foto en grande">
+        <svg class="ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 3 21 3 21 9"/><polyline points="9 21 3 21 3 15"/><line x1="21" y1="3" x2="14" y2="10"/><line x1="3" y1="21" x2="10" y2="14"/></svg>
+      </button>
+    </div>
+    ${isAdmin() ? `<div class="foto-actions">
+      <button class="btn btn-sm" id="btn-foto-set" title="Subir o renovar la foto">Subir foto</button>
+      <button class="btn btn-sm hidden" id="btn-foto-ajustar" title="Reencuadrar la foto actual">Ajustar</button>
+      <button class="btn btn-sm hidden" id="btn-foto-del" title="Quitar la foto">Quitar</button>
+    </div>` : ''}
+  </div>`;
+}
+// docsFieldsetHTML: repositorio de documentos reutilizable (mismos ids).
+function docsFieldsetHTML() {
+  return `<div id="fs-docs">
+    <div class="docs-toolbar">
+      ${isAdmin() ? `<button class="btn btn-sm btn-primary" id="doc-add">${ICON.download}<span>Subir documento</span></button>` : ''}
+      <div class="docs-selbar hidden" id="docs-selbar">
+        <span class="bulk-count"><b id="docs-seln">0</b> sel.</span>
+        <button class="btn btn-sm" id="doc-open" title="Abrir en pestañas nuevas">Abrir</button>
+        <button class="btn btn-sm" id="doc-dl" title="Descargar (varios = .zip)">Descargar</button>
+        ${isAdmin() ? `<button class="btn btn-sm btn-danger" id="doc-del">Eliminar</button>` : ''}
+        <button class="btn btn-sm btn-ghost" id="doc-desel">Quitar selección</button>
+      </div>
+    </div>
+    <div class="docs-grid" id="docs-grid"></div>
+    <div class="docs-empty hidden" id="docs-empty">No hay documentos. ${isAdmin() ? 'Use “Subir documento” para agregar archivos PDF o imágenes.' : ''}</div>
+  </div>`;
+}
+
+/* ---------------------- Detalle del entrenador ---------------------- */
+// Ficha del entrenador deportivo: reutiliza el panel de foto y el repositorio
+// de documentos del atleta, apuntando a /api/entrenadores/{id}.
+function verDetalleEntrenador(m) {
+  const base = '/api/entrenadores/' + m.id;
+  $('#det-title').textContent = `${m.nombres} ${m.apellidos}`;
+  $('#det-body').innerHTML = `
+    <div class="det-head">
+      <div class="det-head-main">
+        ${fotoPanelHTML('Foto del entrenador')}
+        <div class="det-head-info"><h3 style="margin:0">${esc(m.apellidos)}, ${esc(m.nombres)}</h3>
+          <div>${chipCinturon(m.cinturon_color, m.dan)} ${m.activo ? '<span class="chip state-activo">' + STATE_DOT + ' activo</span>' : '<span class="chip state-retirado">' + STATE_DOT + ' inactivo</span>'}</div></div>
+      </div>
+    </div>
+    <div class="det-grid">
+      ${kv('Cédula', cedulaFmt(m.cedula_tipo, m.cedula_numero))}
+      ${kv('Teléfono', m.telefono || '—')}
+      ${kv('Escuela', m.escuela_nombre || '—')}
+      ${kv('Atletas asignados', m.num_atletas)}
+    </div>
+    <fieldset style="margin-top:.4rem"><legend>Documentos</legend>
+      ${docsFieldsetHTML()}
+    </fieldset>
+    <div class="det-actions">
+      <button class="btn btn-sm" id="d-ver-atletas">${svg('<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/>')}<span>Ver sus atletas</span></button>
+      ${isAdmin() ? `
+        <button class="btn btn-sm" id="d-editar">${ICON.edit}<span>Editar</span></button>
+        <button class="btn btn-sm btn-danger" id="d-eliminar">${ICON.trash}<span>Eliminar</span></button>` : ''}
+    </div>`;
+  $('#foto-expand').onclick = () => abrirLightboxFoto(base);
+  $('#d-ver-atletas').onclick = () => { cerrar(modalDetalle); verAtletasDe(m); };
+  if (isAdmin()) {
+    $('#btn-foto-set').onclick = () => pedirFoto(base);
+    $('#btn-foto-ajustar').onclick = () => ajustarFotoActual(base);
+    $('#btn-foto-del').onclick = () => quitarFoto(base);
+    $('#doc-add').onclick = () => abrirSubirDocumento(base);
+    $('#d-editar').onclick = () => { cerrar(modalDetalle); abrirEntrenador(m); };
+    $('#d-eliminar').onclick = () => { cerrar(modalDetalle); borrarEntrenador(m); };
+  }
+  cargarFotoDetalle(base);
+  initDocsUI(base);
+  abrir(modalDetalle);
+}
+
+// abrirLightboxFoto muestra la foto en grande (overlay), con cierre.
+function abrirLightboxFoto(base) {
   const box = $('#foto-box');
-  if (box && box.classList.contains('is-logo')) { toast('Este atleta no tiene foto', 'ok'); return; }
+  if (box && box.classList.contains('is-logo')) { toast('No hay foto para mostrar', 'ok'); return; }
   const lb = $('#lightbox'), img = $('#lightbox-img');
-  img.src = `/api/atletas/${id}/foto?t=${Date.now()}`;
+  img.src = `${base}/foto?t=${Date.now()}`;
   abrir(lb);
 }
 
-/* ---------------------- Foto del atleta ---------------------- */
-// Carga la foto en la ficha; si el atleta no tiene (o no hay acceso), muestra el
-// logo de la academia como marcador y ajusta los botones (Subir/Cambiar/Quitar).
-function cargarFotoDetalle(id) {
+/* ---------------------- Foto (atleta o entrenador) ---------------------- */
+// Todas las funciones de foto trabajan sobre una URL base de la entidad
+// ('/api/atletas/{id}' o '/api/entrenadores/{id}'), reutilizando la misma UI.
+// Carga la foto en la ficha; si no tiene (o no hay acceso), muestra el logo de
+// la academia como marcador y ajusta los botones (Subir/Cambiar/Quitar).
+function cargarFotoDetalle(base) {
   const img = $('#foto-img'), box = $('#foto-box');
   if (!img) return;
   box.classList.remove('is-logo');
   img.onerror = () => { img.onerror = null; box.classList.add('is-logo'); img.src = '/logo_academia.png'; marcarBotonesFoto(false); };
   img.onload = () => { if (img.src.indexOf('logo_academia') < 0) { box.classList.remove('is-logo'); marcarBotonesFoto(true); } };
-  img.src = `/api/atletas/${id}/foto?t=${Date.now()}`;
+  img.src = `${base}/foto?t=${Date.now()}`;
 }
 // marcarBotonesFoto: "Subir foto" (sin foto) vs "Cambiar foto" (con foto), y
 // muestra "Ajustar" y "Quitar" solo cuando hay foto.
@@ -1259,30 +1322,30 @@ function marcarBotonesFoto(tiene) {
   if (del) del.classList.toggle('hidden', !tiene);
   if (aj) aj.classList.toggle('hidden', !tiene);
 }
-// ajustarFotoActual: carga la foto actual del atleta en el recortador para
-// reencuadrarla sin volver a subir el archivo.
-async function ajustarFotoActual(id) {
+// ajustarFotoActual: carga la foto actual en el recortador para reencuadrarla
+// sin volver a subir el archivo.
+async function ajustarFotoActual(base) {
   try {
-    const res = await fetch(`/api/atletas/${id}/foto?t=${Date.now()}`);
+    const res = await fetch(`${base}/foto?t=${Date.now()}`);
     if (!res.ok) return toast('No se pudo cargar la foto actual', 'err');
     const blob = await res.blob();
-    fotoTargetId = id;
+    fotoBase = base;
     abrirCropper(blob);
   } catch { toast('No se pudo cargar la foto actual', 'err'); }
 }
-let fotoTargetId = null;
-function pedirFoto(id) { fotoTargetId = id; const f = $('#foto-file'); f.value = ''; f.click(); }
+let fotoBase = null; // URL base de la entidad cuya foto se está gestionando
+function pedirFoto(base) { fotoBase = base; const f = $('#foto-file'); f.value = ''; f.click(); }
 $('#foto-file').addEventListener('change', () => {
   const f = $('#foto-file').files[0];
-  if (!f || fotoTargetId == null) return;
+  if (!f || fotoBase == null) return;
   const okTipo = /\.(jpe?g|png)$/i.test(f.name) || ['image/jpeg', 'image/png'].includes(f.type);
   if (!okTipo) return toast('Formato no admitido: use JPG, JPEG o PNG', 'err');
   if (f.size > state.maxUploadMB * 1024 * 1024) return toast(`La imagen supera el máximo de ${state.maxUploadMB} MB`, 'err');
   abrirCropper(f);
 });
-async function quitarFoto(a) {
-  if (!await confirmar('¿Quitar la foto de este atleta?', { peligro: true, ok: 'Quitar' })) return;
-  try { await api(`/api/atletas/${a.id}/foto`, { method: 'DELETE' }); toast('Foto eliminada'); cargarFotoDetalle(a.id); }
+async function quitarFoto(base) {
+  if (!await confirmar('¿Quitar esta foto?', { peligro: true, ok: 'Quitar' })) return;
+  try { await api(`${base}/foto`, { method: 'DELETE' }); toast('Foto eliminada'); cargarFotoDetalle(base); }
   catch (e) { toast(e.message, 'err'); }
 }
 
@@ -1348,8 +1411,8 @@ $('#crop-ok').addEventListener('click', () => {
     if (blob.size > state.maxUploadMB * 1024 * 1024) { $('#crop-error').textContent = `La imagen supera ${state.maxUploadMB} MB.`; return; }
     try {
       const fd = new FormData(); fd.append('foto', blob, 'foto.jpg');
-      await postForm(`/api/atletas/${fotoTargetId}/foto`, fd);
-      toast('Foto actualizada'); cerrar($('#modal-crop')); cargarFotoDetalle(fotoTargetId);
+      await postForm(`${fotoBase}/foto`, fd);
+      toast('Foto actualizada'); cerrar($('#modal-crop')); cargarFotoDetalle(fotoBase);
     } catch (e) { $('#crop-error').textContent = e.message; }
   }, 'image/jpeg', 0.9);
 });
@@ -1357,19 +1420,21 @@ $('#crop-ok').addEventListener('click', () => {
 $('#lightbox-x').addEventListener('click', () => cerrar($('#lightbox')));
 $('#lightbox').addEventListener('click', (e) => { if (e.target === $('#lightbox') || e.target === $('#lightbox-img')) cerrar($('#lightbox')); });
 
-/* ---------------------- Documentos del atleta ---------------------- */
-function initDocsUI(a) {
-  state.docAtletaId = a.id;
+/* ---------------- Documentos (atleta o entrenador) ---------------- */
+// Igual que la foto: todo trabaja sobre la URL base de la entidad, así el mismo
+// repositorio de documentos sirve para atletas y entrenadores.
+function initDocsUI(base) {
+  state.docBase = base;
   state.docSel = new Set();
   $('#doc-open').onclick = () => abrirDocsSeleccionados();
   $('#doc-dl').onclick = () => descargarDocsSeleccionados();
   if ($('#doc-del')) $('#doc-del').onclick = () => eliminarDocsSeleccionados();
   $('#doc-desel').onclick = () => { state.docSel.clear(); renderDocsSel(); };
-  cargarDocumentos(a.id);
+  cargarDocumentos(base);
 }
-async function cargarDocumentos(id) {
+async function cargarDocumentos(base) {
   let docs;
-  try { docs = await api(`/api/atletas/${id}/documentos`); } catch (e) { return; }
+  try { docs = await api(`${base}/documentos`); } catch (e) { return; }
   state.docsData = docs || [];
   const grid = $('#docs-grid'), empty = $('#docs-empty');
   if (!grid) return;
@@ -1385,7 +1450,7 @@ async function cargarDocumentos(id) {
     }
     return `<div class="doc-card" data-id="${d.id}" title="${esc(d.nombre)}">
       <input type="checkbox" class="doc-check" data-id="${d.id}">
-      <div class="doc-thumb">${thumbDoc(id, d)}</div>
+      <div class="doc-thumb">${thumbDoc(base, d)}</div>
       <div class="doc-name">${esc(d.nombre)}</div>
     </div>`;
   }).join('');
@@ -1407,14 +1472,14 @@ async function cargarDocumentos(id) {
     e.stopPropagation();
     const did = +btn.dataset.id;
     if (!await confirmar('¿Eliminar este documento?', { peligro: true, ok: 'Eliminar' })) return;
-    try { await api(`/api/atletas/${state.docAtletaId}/documentos/${did}`, { method: 'DELETE' }); toast('Documento eliminado'); cargarDocumentos(state.docAtletaId); }
+    try { await api(`${state.docBase}/documentos/${did}`, { method: 'DELETE' }); toast('Documento eliminado'); cargarDocumentos(state.docBase); }
     catch (err) { toast(err.message, 'err'); }
   }));
   renderDocsSel();
 }
 // thumbDoc: miniatura del documento — imagen directa o primera página del PDF.
-function thumbDoc(id, d) {
-  const url = `/api/atletas/${id}/documentos/${d.id}`;
+function thumbDoc(base, d) {
+  const url = `${base}/documentos/${d.id}`;
   if (d.tipo === 'img') return `<img class="doc-img" src="${url}" alt="" loading="lazy">`;
   return `<object data="${url}#page=1&toolbar=0&navpanes=0&scrollbar=0&view=Fit" type="application/pdf"><div class="doc-fallback">${ICON.pdf}<span>PDF</span></div></object>`;
 }
@@ -1433,37 +1498,37 @@ function renderDocsSel() {
   const bar = $('#docs-selbar'); if (bar) bar.classList.toggle('hidden', n === 0);
   const sn = $('#docs-seln'); if (sn) sn.textContent = n;
 }
-function docURL(id, download) { return `/api/atletas/${state.docAtletaId}/documentos/${id}${download ? '?download=1' : ''}`; }
+function docURL(id, download) { return `${state.docBase}/documentos/${id}${download ? '?download=1' : ''}`; }
 function abrirDoc(id) { window.open(docURL(id), '_blank'); }
 function abrirDocsSeleccionados() { [...state.docSel].forEach(id => window.open(docURL(id), '_blank')); }
 function descargarDocsSeleccionados() {
   const ids = [...state.docSel];
   if (ids.length === 0) return;
   if (ids.length === 1) { descargar(docURL(ids[0], true)); return; }
-  descargar(`/api/atletas/${state.docAtletaId}/documentos/zip?ids=${ids.join(',')}`);
+  descargar(`${state.docBase}/documentos/zip?ids=${ids.join(',')}`);
 }
 async function eliminarDocsSeleccionados() {
   const ids = [...state.docSel];
   if (ids.length === 0) return;
   if (!await confirmar(`¿Eliminar ${ids.length} documento(s)? Esta acción no se puede deshacer.`, { peligro: true, ok: 'Eliminar' })) return;
   let fail = 0;
-  for (const id of ids) { try { await api(`/api/atletas/${state.docAtletaId}/documentos/${id}`, { method: 'DELETE' }); } catch { fail++; } }
+  for (const id of ids) { try { await api(`${state.docBase}/documentos/${id}`, { method: 'DELETE' }); } catch { fail++; } }
   if (fail) toast(`${fail} documento(s) no se pudieron eliminar`, 'err'); else toast('Documentos eliminados');
-  state.docSel.clear(); cargarDocumentos(state.docAtletaId);
+  state.docSel.clear(); cargarDocumentos(state.docBase);
 }
-// Modal de subida de documento.
+// Modal de subida de documento (recibe la URL base de la entidad).
 const modalDocumento = $('#modal-documento');
-function abrirSubirDocumento(atletaId) {
+function abrirSubirDocumento(base) {
   $('#form-documento').reset();
   $('#doc-error').textContent = '';
-  $('#doc-atleta-id').value = atletaId;
-  $('#doc-hint').textContent = `Solo archivos PDF, hasta ${state.maxUploadMB} MB.`;
+  $('#doc-atleta-id').value = base;
+  $('#doc-hint').textContent = `PDF o imagen (JPG, PNG), hasta ${state.maxUploadMB} MB.`;
   abrir(modalDocumento);
 }
 $('#form-documento').addEventListener('submit', async (e) => {
   e.preventDefault();
   $('#doc-error').textContent = '';
-  const id = $('#doc-atleta-id').value;
+  const base = $('#doc-atleta-id').value;
   const nombre = $('#doc-nombre').value.trim();
   const file = $('#doc-file').files[0];
   if (!nombre) { $('#doc-error').textContent = 'Escriba un nombre para el documento.'; return; }
@@ -1472,7 +1537,7 @@ $('#form-documento').addEventListener('submit', async (e) => {
   if (!okTipo) { $('#doc-error').textContent = 'Solo se aceptan PDF o imágenes (JPG, PNG).'; return; }
   if (file.size > state.maxUploadMB * 1024 * 1024) { $('#doc-error').textContent = `El documento supera el máximo de ${state.maxUploadMB} MB.`; return; }
   const fd = new FormData(); fd.append('nombre', nombre); fd.append('archivo', file);
-  try { await postForm(`/api/atletas/${id}/documentos`, fd); toast('Documento subido'); cerrar(modalDocumento); cargarDocumentos(id); }
+  try { await postForm(`${base}/documentos`, fd); toast('Documento subido'); cerrar(modalDocumento); cargarDocumentos(base); }
   catch (err) { $('#doc-error').textContent = err.message; }
 });
 async function cambiarCinturon(a) {
@@ -1648,6 +1713,7 @@ async function cargarEntrenadores() {
       { label: 'Atletas', value: m => m.num_atletas, type: 'number', filter: false },
       { label: 'Activo', value: m => m.activo ? 'Sí' : 'No', type: 'bool', html: m => m.activo ? '<span class="chip state-activo">Sí</span>' : '<span class="chip state-retirado">No</span>' },
     ],
+    onOpen: m => verDetalleEntrenador(m),
     onVer: m => verAtletasDe(m), verLabel: 'Ver sus atletas',
     onEdit: m => abrirEntrenador(m), onDelete: m => borrarEntrenador(m),
     detailTitle: m => `${m.nombres} ${m.apellidos}`.trim(),
